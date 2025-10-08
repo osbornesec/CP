@@ -1,0 +1,88 @@
+# Rust build artifacts
+/target/
+target/
+Cargo.lock
+
+# Sample data files (large cpinfo files)
+/samples/
+*.cpinfo
+*.cpinfoall
+
+# IDE and editor files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Python virtual environments (for hooks)
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.orig
+
+# Debug and profiling
+*.pdb
+perf.data
+perf.data.old
+flamegraph.svg
+callgrind.out.*
+
+# Documentation build
+/target/doc/
+/target/criterion/
+
+# Test coverage
+*.profraw
+*.profdata
+/coverage/
+lcov.info
+
+# Large generated files
+clippy_output*.txt
+clippy_results*.txt
+clippy_latest.txt
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.backup
+*.old
+*.save
+
+# Generated benchmark data
+/target/criterion/
+
+# Claude configuration and temporary files
+.claude/
+*.claude
+
+# Security sensitive files (if any)
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+*.cer
+secrets.toml
+.env
+.env.local

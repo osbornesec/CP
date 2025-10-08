@@ -1,0 +1,227 @@
+[package]
+name = "cpinfo-parser"
+version = "0.1.0"
+edition = "2021"
+authors = ["Check Point CPInfo Parser Team"]
+description = "A streaming parser for Check Point diagnostic cpinfo files"
+license = "MIT"
+repository = "https://github.com/checkpoint/cpinfo-parser"
+keywords = ["checkpoint", "cpinfo", "parsing", "streaming", "security"]
+categories = ["command-line-utilities", "parsing"]
+
+[[bin]]
+name = "cpinfo-parser"
+path = "src/main.rs"
+
+[[bin]]
+name = "test_runner_38"
+path = "test_runner_38.rs"
+
+[[bin]]
+name = "test_runner_39"
+path = "test_runner_39.rs"
+
+[dependencies]
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+bitflags = "2.4"
+
+# CLI and configuration
+clap = { version = "4.4", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# Async and streaming
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "fs", "io-util", "sync"] }
+tokio-stream = "0.1"
+futures = "0.3"
+
+# File I/O and path handling
+walkdir = "2.4"
+memmap2 = "0.9"
+
+# Text processing and pattern matching
+regex = "1.10"
+encoding_rs = "0.8"
+memchr = "2.6"
+
+# Progress reporting
+indicatif = "0.17"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Security and sanitization
+sanitize-filename = "0.5"
+
+# Cryptographic operations
+aes-gcm = "0.10"
+chacha20poly1305 = "0.10"
+rand = "0.8"
+base64 = "0.21"
+sha2 = "0.10"
+
+# Time handling for audit trails
+chrono = { version = "0.4", features = ["serde"] }
+
+# UUID generation for audit entries
+uuid = { version = "1.0", features = ["v4"] }
+
+# System information
+num_cpus = "1.16"
+
+# Parallel processing
+rayon = "1.8"
+
+# Temporary files (used in test runners)
+tempfile = "3.8"
+
+[dev-dependencies]
+# Core testing framework (built into Rust)
+# Additional testing utilities
+assert_fs = "1.0"          # File system testing
+assert_cmd = "2.0"         # Command line testing
+predicates = "3.0"         # Assertion helpers
+tempfile = "3.8"           # Temporary files for testing
+mockall = "0.11"           # Mock object framework
+criterion = "0.5"          # Performance benchmarking
+proptest = "1.4"           # Property-based testing
+serial_test = "3.0"        # Sequential test execution
+rstest = "0.18"            # Parameterized testing
+wiremock = "0.5"           # HTTP mocking for integration tests
+
+[features]
+default = ["security", "progress"]
+security = []              # Enable security controls and sanitization
+progress = []              # Enable progress reporting
+enterprise = ["security", "progress"]  # Enterprise features bundle
+
+# Performance optimizations
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+debug = true
+
+# Benchmarking profile
+[profile.bench]
+debug = false
+
+[[bench]]
+name = "performance"
+harness = false
+path = "benches/performance.rs"
+
+# Clippy Configuration - Strictest Linting
+[lints.clippy]
+# Pedantic lints (very strict style and best practices)
+pedantic = { level = "deny", priority = -1 }
+
+# Restriction lints (opinionated restrictions)
+restriction = { level = "deny", priority = -1 }
+# Override conflicting restriction rules to alllow automated fixes
+separated_literal_suffix = "allow"
+allow_attributes = "allow"
+cfg_not_test = "allow"
+absolute_paths = "allow"
+arithmetic_side_effects = "allow"
+as_conversions = "allow"
+cast_lossless = "allow"
+default_numeric_fallback = "allow"
+else_if_without_else = "allow"
+redundant_else = "allow"
+single_char_lifetime_names = "allow"
+collection_is_never_read = "allow"
+missing_docs_in_private_items = "allow"
+module_name_repetitions = "allow"
+needless_return = "allow"
+allow_attributes_without_reason = "deny"
+as_underscore = "deny"
+assertions_on_result_states = "deny"
+clone_on_ref_ptr = "deny"
+create_dir = "deny"
+dbg_macro = "deny"
+decimal_literal_representation = "deny"
+deref_by_slicing = "deny"
+disallowed_script_idents = "deny"
+empty_structs_with_brackets = "deny"
+exit = "deny"
+expect_used = "deny"
+filetype_is_file = "deny"
+float_arithmetic = "deny"
+float_cmp_const = "deny"
+fn_to_numeric_cast_any = "deny"
+format_push_string = "deny"
+get_unwrap = "deny"
+host_endian_bytes = "deny"
+if_then_some_else_none = "deny"
+impl_trait_in_params = "deny"
+indexing_slicing = "deny"
+inline_asm_x86_att_syntax = "deny"
+inline_asm_x86_intel_syntax = "deny"
+integer_division = "deny"
+large_include_file = "deny"
+let_underscore_must_use = "deny"
+let_underscore_untyped = "deny"
+lossy_float_literal = "deny"
+map_err_ignore = "deny"
+mem_forget = "deny"
+missing_asserts_for_indexing = "deny"
+mixed_read_write_in_expression = "deny"
+mod_module_files = "deny"
+modulo_arithmetic = "deny"
+multiple_inherent_impl = "deny"
+multiple_unsafe_ops_per_block = "deny"
+mutex_atomic = "deny"
+needless_raw_strings = "deny"
+non_ascii_literal = "deny"
+partial_pub_fields = "deny"
+cast_precision_loss = "allow"
+print_stderr = "deny"
+print_stdout = "deny"
+pub_use = "deny"
+pub_with_shorthand = "deny"
+rc_buffer = "deny"
+rc_mutex = "deny"
+redundant_type_annotations = "deny"
+ref_patterns = "deny"
+rest_pat_in_fully_bound_structs = "deny"
+same_name_method = "deny"
+self_named_module_files = "allow"
+semicolon_inside_block = "deny"
+shadow_reuse = "deny"
+shadow_same = "deny"
+shadow_unrelated = "deny"
+str_to_string = "deny"
+string_add = "deny"
+string_slice = "deny"
+string_to_string = "deny"
+suspicious_xor_used_as_pow = "deny"
+todo = "deny"
+try_err = "deny"
+undocumented_unsafe_blocks = "deny"
+unimplemented = "deny"
+unnecessary_safety_comment = "deny"
+unnecessary_safety_doc = "deny"
+unreachable = "deny"
+unseparated_literal_suffix = "deny"
+unwrap_used = "deny"
+use_debug = "deny"
+verbose_file_reads = "deny"
+wildcard_enum_match_arm = "deny"
+
+  # Nursery lints (experimental but valuable)
+nursery = { level = "deny", priority = -1 }
+
+
+
+ 
+
+# Cargo lints (requires nightly - commented out for stable)
+# [lints.cargo]
+# multiple_crate_versions = "warn"

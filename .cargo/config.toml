@@ -1,0 +1,87 @@
+# Cargo Configuration - Strictest Build and Development Settings
+
+[build]
+# Enable all warnings as errors for maximum strictness
+rustflags = [
+    "-D", "warnings",                    # Deny all warnings
+    "-D", "clippy::all",                 # Deny all clippy lints
+    "-D", "clippy::pedantic",            # Deny pedantic clippy lints
+    "-D", "clippy::nursery",             # Deny nursery clippy lints
+    "-D", "clippy::cargo",               # Deny cargo clippy lints
+    "-D", "rust_2018_idioms",            # Deny non-2018 idioms
+    "-D", "rust_2021_compatibility",     # Deny 2021 compatibility issues
+    "-D", "future_incompatible",         # Deny future incompatibility
+    "-D", "nonstandard_style",           # Deny non-standard style
+    "-D", "unused",                      # Deny unused code
+    "-D", "missing_docs",                # Deny missing documentation
+    "-D", "missing_debug_implementations", # Deny missing Debug impls
+    "-D", "missing_copy_implementations", # Deny missing Copy impls
+    "-D", "trivial_casts",               # Deny trivial casts
+    "-D", "trivial_numeric_casts",       # Deny trivial numeric casts
+    "-D", "unsafe_code",                 # Deny unsafe code (can be overridden per-crate)
+    "-D", "unstable_features",           # Deny unstable features
+    "-D", "unused_import_braces",        # Deny unnecessary import braces
+    "-D", "unused_qualifications",       # Deny unnecessary qualifications
+    "-W", "macro_use_extern_crate",      # Warn about macro_use extern crate
+    "-W", "meta_variable_misuse",        # Warn about meta variable misuse
+    "-W", "single_use_lifetimes",        # Warn about single use lifetimes
+    "-W", "unreachable_pub",             # Warn about unreachable pub items
+    "-W", "unused_lifetimes",            # Warn about unused lifetimes
+    "-W", "unused_macro_rules",          # Warn about unused macro rules
+]
+
+# Target configuration
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-Wl,-z,relro,-z,now"]  # Security hardening
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "link-arg=/DYNAMICBASE", "-C", "link-arg=/NXCOMPAT"]  # Security hardening
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-Wl,-pie"]  # Security hardening
+
+# Strict checking aliases
+[alias]
+strict-check = "check --all-targets --all-features"
+strict-clippy = "clippy --all-targets --all-features -- -D warnings"
+strict-test = "test --all-targets --all-features"
+strict-fmt = "fmt -- --check"
+strict-doc = "doc --all-features --no-deps --document-private-items"
+
+# Security and quality focused commands
+security-audit = "audit"
+full-lint = [
+    "fmt", "--", "--check",
+    "clippy", "--all-targets", "--all-features", "--", "-D", "warnings",
+    "check", "--all-targets", "--all-features",
+    "test", "--all-targets", "--all-features",
+    "doc", "--all-features", "--no-deps", "--document-private-items"
+]
+
+# Performance profiling
+bench-all = "bench --all-features"
+
+# Registry and network configuration
+[net]
+retry = 3
+git-fetch-with-cli = true
+
+[registry]
+default = "crates-io"
+
+# Source configuration (removed circular reference)
+
+# HTTP configuration
+[http]
+check-revoke = true
+multiplexing = true
+user-agent = "cpinfo-parser-cargo"
+
+# Build output configuration
+[term]
+verbose = false
+color = "auto"
+
+# Install configuration
+[install]
+root = "~/.cargo"

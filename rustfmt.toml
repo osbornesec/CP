@@ -1,0 +1,44 @@
+# Rust Formatter Configuration - Strictest Stable Settings
+# This configuration enforces the most rigid formatting standards using only stable features
+
+# Edition and version
+edition = "2021"
+
+# Line length and indentation
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+
+# Import organization (stable features only)
+reorder_imports = true
+reorder_modules = true
+
+# Function and type formatting
+fn_params_layout = "Tall"
+fn_call_width = 60
+attr_fn_like_width = 70
+struct_lit_width = 18
+struct_variant_width = 35
+array_width = 60
+chain_width = 60
+single_line_if_else_max_width = 50
+
+# Trailing elements
+match_block_trailing_comma = false
+
+# Spacing and alignment
+remove_nested_parens = true
+force_explicit_abi = true
+
+# Advanced formatting (stable only)
+merge_derives = true
+newline_style = "Unix"
+
+# Specific construct formatting
+match_arm_leading_pipes = "Never"
+short_array_element_width_threshold = 10
+use_field_init_shorthand = false
+use_try_shorthand = false
+
+# Small heuristics control (stable)
+use_small_heuristics = "Off"

@@ -1,0 +1,400 @@
+//! Organized section extraction with categorized directory structure
+//!
+//! This module provides advanced section extraction that organizes sections
+//! into categorized directories with progress reporting and detailed statistics.
+
+use core::cmp;
+use std::fs::create_dir_all;
+use std::path::{Path, PathBuf};
+
+use tracing::{debug, info, warn};
+
+use crate::error::Result;
+use crate::extraction::types::OrganizedExtractionResult;
+use crate::extraction::writer::{
+    sanitize_filename, write_section_with_progress, SectionWriteParams, WriterConfig,
+};
+
+/// Parameters for organized section extraction to reduce function argument count
+struct OrganizedExtractionParams<'content> {
+    /// Category directory for organized output
+    category_dir: &'content Path,
+    /// Ending line index for content
+    content_end: usize,
+    /// Starting line index for content
+    content_start: usize,
+    /// All lines from the file
+    lines: &'content [&'content str],
+    /// Section index for progress reporting
+    section_index: usize,
+    /// Name of the section
+    section_name: &'content str,
+    /// Total sections for progress reporting
+    total_sections: usize,
+}
+
+/// State for tracking organized extraction progress
+struct OrganizedExtractionState {
+    directories_created: Vec<PathBuf>,
+    section_files: Vec<PathBuf>,
+    writer_config: WriterConfig,
+}
+
+impl OrganizedExtractionState {
+    fn add_section_file(&mut self, file: PathBuf) {
+        self.section_files.push(file);
+    }
+
+    fn ensure_category_directory(&mut self, base_path: &Path, category: &str) -> Result<PathBuf> {
+        let category_dir = base_path.join(category);
+
+        if !category_dir.exists() {
+            match create_dir_all(&category_dir) {
+                Ok(()) => {}
+                Err(create_error) => return Err(create_error.into()),
+            }
+            self.directories_created.push(category_dir.clone());
+            info!("\u{1f4c1} Created category directory: {:?}", category_dir);
+        }
+
+        return Ok(category_dir);
+    }
+
+    #[allow(
+        clippy::single_call_fn,
+        reason = "Semantic clarity and code organization"
+    )]
+    #[inline]
+    fn new() -> Self {
+        return Self {
+            directories_created: Vec::new(),
+            section_files: Vec::new(),
+            writer_config: WriterConfig::default(),
+        };
+    }
+}
+
+/// Extract sections with organized directory structure
+///
+/// This function provides advanced section extraction with:
+/// - Categorized directory organization
+/// - Progress reporting for large sections
+/// - Detailed extraction statistics
+///
+/// # Arguments
+///
+/// * `input_path` - Path to the input cpinfo file
+/// * `output_path` - Base directory for organized extraction
+///
+/// # Returns
+///
+/// `OrganizedExtractionResult` with detailed extraction information
+///
+/// # Errors
+///
+/// Returns an error if file reading fails, validation fails, or sections cannot be written
+#[inline]
+pub fn extract_sections_organized<P1: AsRef<Path>, P2: AsRef<Path>>(
+    input_path: P1,
+    output_path: P2,
+) -> Result<OrganizedExtractionResult> {
+    let input_path_ref = input_path.as_ref();
+    let output_path_ref = output_path.as_ref();
+
+    info!(
+        "\u{1f680} Starting organized extraction from {:?}",
+        input_path_ref
+    );
+    info!("\u{1f4c2} Output directory: {:?}", output_path_ref);
+
+    match create_dir_all(output_path_ref) {
+        Ok(()) => {}
+        Err(create_error) => return Err(create_error.into()),
+    }
+
+    let file_content = match read_file_content(input_path_ref) {
+        Ok(content) => content,
+        Err(read_error) => return Err(read_error),
+    };
+    let lines: Vec<&str> = file_content.lines().collect();
+
+    info!("\u{1f4ca} Total file lines: {}", lines.len());
+
+    let extraction_state = match process_organized_sections(&lines, output_path_ref) {
+        Ok(state) => state,
+        Err(process_error) => return Err(process_error),
+    };
+
+    let extraction_params = crate::extraction::types::OrganizedExtractionParams {
+        sections_extracted: extraction_state.section_files.len(),
+        output_directory: output_path_ref.to_path_buf(),
+        section_files: extraction_state.section_files,
+        vsx_detected: false,      // VSX detection is handled in separate module
+        virtual_systems_count: 0, // Virtual systems count for VSX
+        directories_created: extraction_state.directories_created,
+    };
+    let result = OrganizedExtractionResult::new(extraction_params);
+
+    info!(
+        "\u{2705} Organized extraction complete: {} sections extracted",
+        result.sections_extracted
+    );
+
+    return Ok(result);
+}
+
+/// Process sections with organized directory structure
+#[allow(
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
+)]
+#[inline]
+fn process_organized_sections(
+    lines: &[&str],
+    output_path: &Path,
+) -> Result<OrganizedExtractionState> {
+    let mut state = OrganizedExtractionState::new();
+    let total_sections = count_estimated_sections(lines);
+
+    info!(
+        "\u{1f4c8} Estimated sections to process: {}",
+        total_sections
+    );
+
+    let mut section_index = 0;
+
+    // Skip header
+    let mut section_index_start = skip_file_header(lines);
+
+    // Process sections
+    while section_index_start < lines.len() {
+        if let Some((section_name, content_start, content_end)) =
+            find_next_section(lines, section_index_start)
+        {
+            section_index += 1;
+
+            info!(
+                "\u{1f4c4} Processing section {}/{}: {}",
+                section_index, total_sections, section_name
+            );
+
+            let category = categorize_section(&section_name);
+            let category_dir = match state.ensure_category_directory(output_path, &category) {
+                Ok(directory) => directory,
+                Err(directory_error) => return Err(directory_error),
+            };
+
+            let extraction_params = OrganizedExtractionParams {
+                category_dir: &category_dir,
+                content_end,
+                content_start,
+                lines,
+                section_index,
+                section_name: &section_name,
+                total_sections,
+            };
+
+            let section_file_result =
+                extract_organized_section(&extraction_params, &state.writer_config);
+
+            match section_file_result {
+                Ok(Some(section_file)) => {
+                    state.add_section_file(section_file);
+                }
+                Ok(None) => {}
+                Err(write_error) => return Err(write_error),
+            }
+
+            section_index_start = content_end + 1; // Move past this section
+        } else {
+            section_index_start += 1; // Move to next line if no section found
+        }
+    }
+
+    return Ok(state);
+}
+
+/// Read file content with fallback for non-UTF8 files
+#[allow(
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
+)]
+#[inline]
+fn read_file_content(path: &Path) -> Result<String> {
+    if let Ok(content) = std::fs::read_to_string(path) {
+        return Ok(content);
+    }
+
+    warn!("Failed to read as UTF-8, using lossy conversion");
+    let file_bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(read_error) => return Err(read_error.into()),
+    };
+    return Ok(String::from_utf8_lossy(&file_bytes).into_owned());
+}
+
+/// Skip the file header to get to actual sections
+#[allow(
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
+)]
+#[inline]
+fn skip_file_header(lines: &[&str]) -> usize {
+    const DELIMITER: &str = "==============================================";
+
+    for (i, line) in lines.iter().enumerate() {
+        if line.contains("Check Point Support Information") {
+            // Look for the first delimiter after the header
+            for j in (i + 1)..lines.len() {
+                if let Some(delimiter_line) = lines.get(j) {
+                    if delimiter_line.trim() == DELIMITER {
+                        return j + 1;
+                    }
+                }
+            }
+        }
+    }
+
+    return 0; // No header found, start from beginning
+}
+
+/// Find the next section starting from the given index
+#[allow(
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
+)]
+#[inline]
+fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usize, usize)> {
+    const DELIMITER: &str = "==============================================";
+
+    for line_index in start_index..lines.len() {
+        let current_line = match lines.get(line_index) {
+            Some(line_content) => line_content.trim(),
+            None => continue,
+        };
+
+        if current_line == DELIMITER && line_index + 1 < lines.len() {
+            let section_name = match lines.get(line_index + 1) {
+                Some(name) => name.trim().to_owned(),
+                None => continue,
+            };
+
+            if !section_name.is_empty() && section_name != DELIMITER {
+                // Find content boundaries
+                let content_start = line_index + 3; // Skip delimiter, name, and next delimiter
+                let content_end = find_section_content_end(lines, content_start);
+
+                return Some((section_name, content_start, content_end));
+            }
+        }
+    }
+
+    return None;
+}
+
+/// Find the end of section content
+#[allow(
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
+)]
+#[inline]
+fn find_section_content_end(lines: &[&str], start_index: usize) -> usize {
+    const DELIMITER: &str = "==============================================";
+
+    for i in start_index..lines.len() {
+        if let Some(line) = lines.get(i) {
+            if line.trim() == DELIMITER {
+                return i;
+            }
+        }
+    }
+
+    return lines.len();
+}
+
+/// Count estimated number of sections for progress reporting
+#[allow(
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
+)]
+#[inline]
+fn count_estimated_sections(lines: &[&str]) -> usize {
+    const DELIMITER: &str = "==============================================";
+    return cmp::max(
+        1,
+        lines
+            .iter()
+            .filter(|line| return line.trim() == DELIMITER)
+            .count()
+            .saturating_sub(1),
+    );
+}
+
+/// Extract a single section with organized structure
+#[allow(
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
+)]
+#[inline]
+fn extract_organized_section(
+    params: &OrganizedExtractionParams,
+    writer_config: &WriterConfig,
+) -> Result<Option<PathBuf>> {
+    let safe_name = sanitize_filename(params.section_name);
+    let section_file = params.category_dir.join(format!("{safe_name}.txt"));
+
+    debug!("   \u{1f3af} Target file: {:?}", section_file);
+    debug!(
+        "   \u{1f4cf} Content range: lines {}-{}",
+        params.content_start, params.content_end
+    );
+
+    let write_params = SectionWriteParams {
+        section_name: params.section_name,
+        lines: params.lines,
+        content_start: params.content_start,
+        content_end: params.content_end,
+        output_file: &section_file,
+        section_index: params.section_index,
+        total_sections: params.total_sections,
+    };
+
+    return write_section_with_progress(&write_params, writer_config);
+}
+
+/// Categorize a section name into a directory category
+#[allow(
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
+)]
+#[inline]
+fn categorize_section(section_name: &str) -> String {
+    let name_lower = section_name.to_lowercase();
+
+    let category = match name_lower.as_str() {
+        name if name.contains("system") || name.contains("general") => "system",
+        name if name.contains("network")
+            || name.contains("interface")
+            || name.contains("routing") =>
+        {
+            "network"
+        }
+        name if name.contains("security") || name.contains("firewall") || name.contains("vpn") => {
+            "security"
+        }
+        name if name.contains("policy") || name.contains("rule") => "policy",
+        name if name.contains("log") || name.contains("audit") => "logs",
+        name if name.contains("performance") || name.contains("cpu") || name.contains("memory") => {
+            "performance"
+        }
+        name if name.contains("database") || name.contains("db") => "database",
+        name if name.contains("cluster") || name.contains("ha") => "clustering",
+        name if name.contains("update") || name.contains("hotfix") => "updates",
+        name if name.contains("license") => "licensing",
+        _ => "misc",
+    };
+
+    return category.to_owned();
+}
+
+// Tests moved to tests/organized_extraction_tests.rs for cleaner code organization
