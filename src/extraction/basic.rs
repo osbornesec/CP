@@ -103,7 +103,14 @@ impl SectionExtractor {
 }
 
 impl Default for SectionExtractor {
-    #[inline]
+    /// Creates a default SectionExtractor.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let extractor = SectionExtractor::default();
+    /// let _ = extractor;
+    /// ```
     fn default() -> Self {
         return Self::new();
     }

@@ -126,17 +126,19 @@ pub fn validate_section_name(name: &str, debug: bool) -> SectionValidation {
     return SectionValidation::Valid;
 }
 
-/// Validates a section name without debug output
+/// Validates a section name using the default (no-debug) validation behavior.
 ///
-/// Convenience function for the most common validation use case.
+/// Returns a `SectionValidation` indicating whether the provided section name is valid or which validation rule it violated.
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `name` - The section name to validate
+/// ```
+/// let ok = validate_section_name_simple("Introduction");
+/// assert_eq!(ok, SectionValidation::Valid);
 ///
-/// # Returns
-///
-/// A `SectionValidation` indicating whether the name is valid or invalid.
+/// let bad = validate_section_name_simple("");
+/// assert!(matches!(bad, SectionValidation::Invalid(_)));
+/// ```
 #[must_use]
 #[inline]
 pub fn validate_section_name_simple(name: &str) -> SectionValidation {

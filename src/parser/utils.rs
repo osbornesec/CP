@@ -66,19 +66,26 @@ pub fn contains_binary_data(line: &str) -> bool {
     });
 }
 
-/// Gets current memory usage in MB
+/// Gets the current process memory usage in megabytes.
 ///
-/// Returns the memory usage of the current process in megabytes.
-/// In test mode, returns a simulated value for reproducible testing.
+/// In test builds this returns a stable value of 45.0 MB. If the function cannot
+/// determine the memory usage at runtime, it falls back to 50.0 MB.
 ///
 /// # Returns
 ///
-/// Memory usage in MB as a floating-point number
+/// Memory usage of the current process in megabytes.
+///
+/// # Examples
+///
+/// ```
+/// let mb = get_memory_usage_mb();
+/// assert!(mb > 0.0);
+/// ```
 #[must_use]
 #[inline]
 #[allow(
-    clippy::missing_const_for_fn,
-    reason = "Function invokes system utilities at runtime in non-test builds"
+clippy::missing_const_for_fn,
+reason = "Function invokes system utilities at runtime in non-test builds"
 )]
 pub fn get_memory_usage_mb() -> f64 {
     #[cfg(test)]

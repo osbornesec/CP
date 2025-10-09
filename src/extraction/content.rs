@@ -60,18 +60,20 @@ pub fn extract_section_content(lines: &[&str], start: usize, end: usize) -> Stri
     content_lines[..last_meaningful].join("\n")
 }
 
-/// Find the index after the last non-empty line
+/// Locate the index immediately after the last non-whitespace line in `content_lines`.
 ///
-/// Scans through content lines to find the last line with meaningful content,
-/// ignoring whitespace-only lines at the end.
+/// Returns the position one past the final line that contains any non-whitespace characters.
+/// If no such line exists, returns `0`.
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `content_lines` - Lines to scan for meaningful content
+/// ```
+/// let lines = ["line1", "   ", "", "line2", "   ", ""];
+/// assert_eq!(find_last_meaningful_line(&lines), 4); // index after "line2"
 ///
-/// # Returns
-///
-/// Index after the last meaningful line (0 if no meaningful content found)
+/// let empty = ["", "   ", "\t"];
+/// assert_eq!(find_last_meaningful_line(&empty), 0);
+/// ```
 fn find_last_meaningful_line(content_lines: &[&str]) -> usize {
     let mut last_meaningful = 0;
     for (i, line) in content_lines.iter().enumerate() {

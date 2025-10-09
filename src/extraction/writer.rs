@@ -376,26 +376,39 @@ pub fn write_section_simple(content: &str, output_file: &Path) -> Result<Option<
     return Ok(Some(output_file.to_path_buf()));
 }
 
-/// Write section content to a file with progress reporting
+/// Writes a section to the given output file, optionally showing a progress bar for large sections.
 ///
-/// This function handles the complexity of writing large sections with
-/// progress reporting, content filtering, and proper error handling.
-///
-/// # Arguments
-///
-/// * `params` - Section write parameters including content location and progress info
-/// * `config` - Writer configuration
+/// The function writes lines in the range [content_start, content_end) from `params.lines` into
+/// `params.output_file`. It may create and update a progress bar when the section is large,
+/// ensures parent directories exist, and removes the output file if no meaningful content was written.
 ///
 /// # Returns
 ///
-/// `Ok(Some(PathBuf))` if section was written successfully with meaningful content,
-/// `Ok(None)` if section was skipped due to no meaningful content,
-/// `Err(...)` if writing failed.
+/// `Ok(Some(PathBuf))` when the section was written and contains meaningful content, `Ok(None)` when
+/// the section was skipped because it contained no meaningful content, or `Err(...)` if an error
+/// occurred while creating the progress bar, preparing the file, writing content, or finalizing the result.
 ///
-/// # Errors
+/// # Examples
 ///
-/// Returns error if progress bar creation, file preparation, content writing, or result handling fails.
-#[inline]
+/// ```
+/// use std::path::PathBuf;
+///
+/// // Construct a minimal SectionWriteParams; fields shown for illustration.
+/// let lines: Vec<String> = vec!["line1".into(), "".into(), "line2".into()];
+/// let params = SectionWriteParams {
+///     content_start: 0,
+///     content_end: lines.len(),
+///     lines: &lines,
+///     output_file: PathBuf::from("output.txt"),
+///     section_index: 1,
+///     total_sections: 1,
+///     section_name: "example",
+/// };
+/// let config = WriterConfig::default();
+///
+/// // Call the writer (returns Result<Option<PathBuf>, _>)
+/// let _ = write_section_with_progress(&params, &config);
+/// ```
 pub fn write_section_with_progress(
     params: &SectionWriteParams,
     config: &WriterConfig,
