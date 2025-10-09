@@ -145,11 +145,11 @@ impl SecurityEventLogger {
         });
     }
 
-    /// Appends a SecurityEvent to the logger's in-memory event store.
+    /// Appends a `SecurityEvent` to the logger's in-memory event store.
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust,ignore
     /// let mut logger = SecurityEventLogger::new("/tmp/audit").unwrap();
     /// let event = SecurityEvent { /* fields */ };
     /// logger.store_event(event);

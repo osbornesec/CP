@@ -133,6 +133,9 @@ pub fn validate_section_name(name: &str, debug: bool) -> SectionValidation {
 /// # Examples
 ///
 /// ```
+/// use cpinfo_parser::section::types::SectionValidation;
+/// use cpinfo_parser::section::validation::validate_section_name_simple;
+///
 /// let ok = validate_section_name_simple("Introduction");
 /// assert_eq!(ok, SectionValidation::Valid);
 ///

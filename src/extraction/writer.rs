@@ -55,6 +55,31 @@ pub struct SectionWriteParams<'content> {
     pub total_sections: usize,
 }
 
+impl<'content> SectionWriteParams<'content> {
+    /// Create a new set of parameters for `write_section_with_progress`.
+    #[inline]
+    #[must_use]
+    pub const fn new(
+        content_start: usize,
+        content_end: usize,
+        lines: &'content [&'content str],
+        output_file: &'content Path,
+        section_index: usize,
+        section_name: &'content str,
+        total_sections: usize,
+    ) -> Self {
+        return Self {
+            content_end,
+            content_start,
+            lines,
+            output_file,
+            section_index,
+            section_name,
+            total_sections,
+        };
+    }
+}
+
 /// Configuration for section writing operations
 #[non_exhaustive]
 pub struct WriterConfig {
@@ -378,7 +403,7 @@ pub fn write_section_simple(content: &str, output_file: &Path) -> Result<Option<
 
 /// Writes a section to the given output file, optionally showing a progress bar for large sections.
 ///
-/// The function writes lines in the range [content_start, content_end) from `params.lines` into
+/// The function writes lines in the range [`content_start`, `content_end`) from `params.lines` into
 /// `params.output_file`. It may create and update a progress bar when the section is large,
 /// ensures parent directories exist, and removes the output file if no meaningful content was written.
 ///
@@ -388,27 +413,36 @@ pub fn write_section_simple(content: &str, output_file: &Path) -> Result<Option<
 /// the section was skipped because it contained no meaningful content, or `Err(...)` if an error
 /// occurred while creating the progress bar, preparing the file, writing content, or finalizing the result.
 ///
+/// # Errors
+///
+/// Returns `Err` if progress reporting fails to initialize, if the destination file cannot be prepared,
+/// while writing any line, or when finalizing the file handle.
+///
 /// # Examples
 ///
 /// ```
-/// use std::path::PathBuf;
+/// use cpinfo_parser::extraction::writer::{
+///     write_section_with_progress, SectionWriteParams, WriterConfig,
+/// };
+/// use std::path::Path;
 ///
 /// // Construct a minimal SectionWriteParams; fields shown for illustration.
-/// let lines: Vec<String> = vec!["line1".into(), "".into(), "line2".into()];
-/// let params = SectionWriteParams {
-///     content_start: 0,
-///     content_end: lines.len(),
-///     lines: &lines,
-///     output_file: PathBuf::from("output.txt"),
-///     section_index: 1,
-///     total_sections: 1,
-///     section_name: "example",
-/// };
+/// let lines: Vec<&str> = vec!["line1", "", "line2"];
+/// let params = SectionWriteParams::new(
+///     0,
+///     lines.len(),
+///     &lines,
+///     Path::new("output.txt"),
+///     1,
+///     "example",
+///     1,
+/// );
 /// let config = WriterConfig::default();
 ///
 /// // Call the writer (returns Result<Option<PathBuf>, _>)
 /// let _ = write_section_with_progress(&params, &config);
 /// ```
+#[inline]
 pub fn write_section_with_progress(
     params: &SectionWriteParams,
     config: &WriterConfig,

@@ -11,6 +11,10 @@ use std::sync::{Mutex, MutexGuard};
 ///
 /// `Ok(MutexGuard<'_, T>)` containing the guard if the lock was acquired, `Err(CpinfoError::mutex_poisoned())` if the mutex is poisoned.
 ///
+/// # Errors
+///
+/// Returns `Err(CpinfoError::mutex_poisoned())` when the mutex has been poisoned by a prior panic.
+///
 /// # Examples
 ///
 /// ```

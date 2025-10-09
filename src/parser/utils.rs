@@ -78,14 +78,16 @@ pub fn contains_binary_data(line: &str) -> bool {
 /// # Examples
 ///
 /// ```
+/// use cpinfo_parser::parser::utils::get_memory_usage_mb;
+///
 /// let mb = get_memory_usage_mb();
 /// assert!(mb > 0.0);
 /// ```
 #[must_use]
 #[inline]
 #[allow(
-clippy::missing_const_for_fn,
-reason = "Function invokes system utilities at runtime in non-test builds"
+    clippy::missing_const_for_fn,
+    reason = "Function invokes system utilities at runtime in non-test builds"
 )]
 pub fn get_memory_usage_mb() -> f64 {
     #[cfg(test)]

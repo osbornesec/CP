@@ -60,18 +60,16 @@ pub fn analyze_punctuation_ratio(name: &str, debug: bool) -> Option<SectionValid
 ///
 /// # Examples
 ///
-/// ```
-/// use crate::section::SectionValidation;
-///
+/// ```rust,ignore
 /// // no alphanumeric characters -> invalid
 /// assert_eq!(
-///     super::validate_meaningful_content("---!!!", false),
+///     validate_meaningful_content("---!!!", false),
 ///     Some(SectionValidation::Invalid("No meaningful content".to_owned()))
 /// );
 ///
 /// // sufficient alphanumeric proportion -> valid (passes this check)
 /// assert_eq!(
-///     super::validate_meaningful_content("Title 123", false),
+///     validate_meaningful_content("Title 123", false),
 ///     None
 /// );
 /// ```

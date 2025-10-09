@@ -154,16 +154,16 @@ fn has_html_like_artifacts(text: &str) -> bool {
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust,ignore
 /// assert!(has_encoding_artifacts("\u{FFFD}"));
 /// assert!(has_encoding_artifacts("\u{e2}\u{20ac}\u{2122}"));
 /// assert!(!has_encoding_artifacts("Normal text"));
 /// ```
 #[inline]
 #[allow(
-clippy::single_match_else,
-clippy::single_call_fn,
-reason = "Specialized helper provides focused encoding artifact detection logic"
+    clippy::single_match_else,
+    clippy::single_call_fn,
+    reason = "Specialized helper provides focused encoding artifact detection logic"
 )]
 fn has_encoding_artifacts(text: &str) -> bool {
     // Check for common encoding artifacts

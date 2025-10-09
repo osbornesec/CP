@@ -267,13 +267,17 @@ impl DelimiterDetector {
 }
 
 impl Default for DelimiterDetector {
-    /// Constructs a DelimiterDetector with default settings.
+    /// Constructs a `DelimiterDetector` with default settings.
     ///
     /// # Examples
     ///
     /// ```
+    /// use cpinfo_parser::section::detector::DelimiterDetector;
+    ///
     /// let detector = DelimiterDetector::default();
+    /// let _ = detector;
     /// ```
+    #[inline]
     fn default() -> Self {
         return Self::new();
     }

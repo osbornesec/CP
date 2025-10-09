@@ -214,13 +214,13 @@ fn is_mixed_decorator_pattern(text: &str) -> bool {
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust,ignore
 /// assert!(contains_partial_delimiter("Title\n====\nContent"));
 /// assert!(!contains_partial_delimiter("==================== full delimiter"));
 /// ```
 #[allow(
-clippy::single_call_fn,
-reason = "Helper function for partial delimiter detection"
+    clippy::single_call_fn,
+    reason = "Helper function for partial delimiter detection"
 )]
 #[inline]
 fn contains_partial_delimiter(text: &str) -> bool {

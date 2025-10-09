@@ -2,7 +2,7 @@
 # This configuration enforces the most rigid formatting standards using only stable features
 
 # Edition and version
-edition = "2021"
+edition = "2024"
 
 # Line length and indentation
 max_width = 100

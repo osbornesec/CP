@@ -103,14 +103,17 @@ impl SectionExtractor {
 }
 
 impl Default for SectionExtractor {
-    /// Creates a default SectionExtractor.
+    /// Creates a default `SectionExtractor`.
     ///
     /// # Examples
     ///
     /// ```
+    /// use cpinfo_parser::SectionExtractor;
+    ///
     /// let extractor = SectionExtractor::default();
     /// let _ = extractor;
     /// ```
+    #[inline]
     fn default() -> Self {
         return Self::new();
     }

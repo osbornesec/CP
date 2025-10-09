@@ -343,10 +343,12 @@ impl Default for ProgressReporter {
 /// # Examples
 ///
 /// ```
+/// use cpinfo_parser::progress::format_duration;
 /// use std::time::Duration;
-/// assert_eq!(super::format_duration(Duration::from_secs(45)), "45s");
-/// assert_eq!(super::format_duration(Duration::from_secs(135)), "2m15s");
-/// assert_eq!(super::format_duration(Duration::from_secs(3900)), "1h5m");
+///
+/// assert_eq!(format_duration(Duration::from_secs(45)), "45s");
+/// assert_eq!(format_duration(Duration::from_secs(135)), "2m15s");
+/// assert_eq!(format_duration(Duration::from_secs(3900)), "1h5m");
 /// ```
 #[must_use]
 #[inline]

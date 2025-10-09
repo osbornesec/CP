@@ -140,14 +140,16 @@ impl MemoryMonitor {
 /// # Examples
 ///
 /// ```
+/// use cpinfo_parser::parser::monitoring::monitoring_memory::get_memory_usage_mb;
+///
 /// // In tests this will equal DEFAULT_TEST_MEMORY_BASE.
 /// let _mb = get_memory_usage_mb();
 /// ```
 #[inline]
 #[must_use]
 #[allow(
-clippy::missing_const_for_fn,
-reason = "Function conditionally performs runtime process inspection"
+    clippy::missing_const_for_fn,
+    reason = "Function conditionally performs runtime process inspection"
 )]
 pub fn get_memory_usage_mb() -> f64 {
     #[cfg(test)]

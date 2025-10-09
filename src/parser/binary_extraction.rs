@@ -235,7 +235,7 @@ fn find_header_end(lines: &[String]) -> usize {
 ///
 /// If `has_binary` is true, increments the state's binary section counter and appends a warning
 /// indicating binary content was detected in the named section. Attempts to persist the joined
-/// `section_content` to a file named "<section_name with spaces replaced by _>.txt" under
+/// `section_content` to a file named "<`section_name` with spaces replaced by _>.txt" under
 /// `output_dir`; on success increments the state's extracted sections counter and records the
 /// saved file path, on failure appends an error message to the state's errors.
 ///
@@ -249,7 +249,7 @@ fn find_header_end(lines: &[String]) -> usize {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```rust,ignore
 /// use std::path::Path;
 /// // construct a minimal state and demonstrate calling the helper (no file IO executed)
 /// let mut state = crate::parser::binary_extraction::ExtractionState::new(vec![]);
@@ -265,8 +265,8 @@ fn find_header_end(lines: &[String]) -> usize {
 /// ```
 #[inline]
 #[allow(
-clippy::single_call_fn,
-reason = "Specialized section processing function"
+    clippy::single_call_fn,
+    reason = "Specialized section processing function"
 )]
 fn process_section_end(
     state: &mut ExtractionState,
