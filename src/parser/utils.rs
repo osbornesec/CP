@@ -6,6 +6,9 @@
 use core::convert::Into as _;
 use std::path::Path;
 
+#[cfg(test)]
+use crate::parser::monitoring::monitoring_config::DEFAULT_TEST_MEMORY_BASE;
+
 /// Saves a section to a file with a sanitized name.
 ///
 /// This function takes a section name, its content, and an output directory.
@@ -68,8 +71,8 @@ pub fn contains_binary_data(line: &str) -> bool {
 
 /// Gets the current process memory usage in megabytes.
 ///
-/// In test builds this returns a stable value of 45.0 MB. If the function cannot
-/// determine the memory usage at runtime, it falls back to 50.0 MB.
+/// In test builds this returns the shared `DEFAULT_TEST_MEMORY_BASE`. If the function
+/// cannot determine the memory usage at runtime, it falls back to 50.0 MB.
 ///
 /// # Returns
 ///
@@ -92,7 +95,7 @@ pub fn contains_binary_data(line: &str) -> bool {
 pub fn get_memory_usage_mb() -> f64 {
     #[cfg(test)]
     {
-        return 45.0;
+        return DEFAULT_TEST_MEMORY_BASE;
     }
 
     #[cfg(not(test))]

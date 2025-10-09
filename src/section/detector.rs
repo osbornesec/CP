@@ -16,11 +16,12 @@ use std::path::Path;
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use cpinfo_parser::section::DelimiterDetector;
+/// ```
+/// use cpinfo_parser::section::detector::DelimiterDetector;
+/// use cpinfo_parser::section::types::SectionValidation;
 ///
-/// let detector = DelimiterDetector::new();
-/// let validation = detector.validate_section_name("System Information");
+/// let validation = DelimiterDetector::validate_section_name("System Information");
+/// assert!(matches!(validation, SectionValidation::Valid));
 /// ```
 #[derive(Debug, Clone)]
 #[non_exhaustive]

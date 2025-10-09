@@ -338,7 +338,7 @@ impl Default for ProgressReporter {
 /// Produces:
 /// - seconds as `"Xs"` for durations less than 60 seconds (e.g. `"30s"`),
 /// - minutes and seconds as `"YmZs"` for durations less than one hour (e.g. `"2m15s"`),
-/// - hours and minutes as `"XhYm"` for durations of one hour or more (e.g. `"1h05m"`).
+/// - hours and minutes as `"XhYm"` for durations of one hour or more (e.g. `"1h5m"`).
 ///
 /// # Examples
 ///
