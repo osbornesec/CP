@@ -267,7 +267,13 @@ impl DelimiterDetector {
 }
 
 impl Default for DelimiterDetector {
-    #[inline]
+    /// Constructs a DelimiterDetector with default settings.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let detector = DelimiterDetector::default();
+    /// ```
     fn default() -> Self {
         return Self::new();
     }

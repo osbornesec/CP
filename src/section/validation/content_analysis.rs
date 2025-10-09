@@ -54,17 +54,27 @@ pub fn analyze_punctuation_ratio(name: &str, debug: bool) -> Option<SectionValid
     return None;
 }
 
-/// Validates that a section name contains meaningful content
+/// Determines whether a trimmed section name contains sufficient alphanumeric content to be considered meaningful.
 ///
-/// # Arguments
+/// Returns `Some(SectionValidation::Invalid(_))` when the name contains no alphanumeric characters or when fewer than 30% of characters are alphanumeric; returns `None` when the name passes this check.
 ///
-/// * `name` - The trimmed section name to validate
-/// * `debug` - Whether to output debug information
+/// # Examples
 ///
-/// # Returns
+/// ```
+/// use crate::section::SectionValidation;
 ///
-/// * `Some(SectionValidation::Invalid)` if validation fails
-/// * `None` if validation passes and should continue to next checks
+/// // no alphanumeric characters -> invalid
+/// assert_eq!(
+///     super::validate_meaningful_content("---!!!", false),
+///     Some(SectionValidation::Invalid("No meaningful content".to_owned()))
+/// );
+///
+/// // sufficient alphanumeric proportion -> valid (passes this check)
+/// assert_eq!(
+///     super::validate_meaningful_content("Title 123", false),
+///     None
+/// );
+/// ```
 #[must_use]
 #[inline]
 pub fn validate_meaningful_content(name: &str, debug: bool) -> Option<SectionValidation> {

@@ -228,21 +228,25 @@ fn find_section_end(lines: &[&str], start_index: usize) -> usize {
     return lines.len();
 }
 
-/// Extract content between start and end indices
+/// Extracts and returns the lines between `start` (inclusive) and `end` (exclusive) joined by `\n`, with trailing empty lines removed.
 ///
-/// # Arguments
-///
-/// * `lines` - All lines from the input file
-/// * `start` - Starting index for content extraction
-/// * `end` - Ending index for content extraction
+/// If `start >= end` or `start` is out of bounds for `lines`, an empty `String` is returned.
 ///
 /// # Returns
 ///
-/// Extracted content as a string, with trailing empty lines removed
+/// `String` containing the extracted lines joined with `\n`; trailing empty lines are removed.
+///
+/// # Examples
+///
+/// ```
+/// let lines = ["section line 1", "section line 2", "", ""];
+/// let s = extract_section_content(&lines, 0, 4);
+/// assert_eq!(s, "section line 1\nsection line 2");
+/// ```
 #[inline]
 #[allow(
-    clippy::single_call_fn,
-    reason = "Helper function for modular code organization"
+clippy::single_call_fn,
+reason = "Helper function for modular code organization"
 )]
 fn extract_section_content(lines: &[&str], start: usize, end: usize) -> String {
     if start >= end || start >= lines.len() {

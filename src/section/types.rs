@@ -126,16 +126,25 @@ impl SectionValidation {
         return matches!(self, Self::Invalid(_));
     }
 
-    /// Check if the validation result indicates a valid section name
+    /// Indicates whether the validation result represents a valid section name.
     ///
     /// # Returns
     ///
-    /// `true` if the validation result is `Valid`, `false` otherwise
+    /// `true` if the validation result is `Valid`, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::SectionValidation;
+    ///
+    /// assert!(SectionValidation::Valid.is_valid());
+    /// assert!(!SectionValidation::Invalid(String::from("empty")).is_valid());
+    /// ```
     #[must_use]
     #[inline]
     #[allow(
-        clippy::pattern_type_mismatch,
-        reason = "Pattern matching on enum variants in const context is safe here"
+    clippy::pattern_type_mismatch,
+    reason = "Pattern matching on enum variants in const context is safe here"
     )]
     pub const fn is_valid(&self) -> bool {
         return matches!(self, Self::Valid);

@@ -52,18 +52,10 @@ impl WriterConfig {
     }
 }
 
-/// Sanitize a section name to be a valid filename
+/// Produce a filesystem-safe filename by replacing problematic characters with underscores.
 ///
-/// Replaces problematic characters with underscores to ensure
-/// the resulting filename is valid on all major filesystems.
-///
-/// # Arguments
-///
-/// * `name` - The section name to sanitize
-///
-/// # Returns
-///
-/// A sanitized filename string suitable for all major filesystems
+/// Replaces spaces, `/`, `:`, and any of `<`, `>`, `"`, `|`, `?`, `*` with `_` to ensure
+/// compatibility with major filesystems.
 ///
 /// # Examples
 ///
@@ -79,4 +71,3 @@ pub fn sanitize_filename(name: &str) -> String {
         .replace(':', "_")
         .replace(['<', '>', '"', '|', '?', '*'], "_")
 }
-

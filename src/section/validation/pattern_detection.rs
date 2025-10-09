@@ -208,10 +208,19 @@ fn is_mixed_decorator_pattern(text: &str) -> bool {
     return decorator_count > alphanumeric_count && decorator_count >= half_length;
 }
 
-/// Checks if text contains partial delimiter patterns
+/// Detects a partial section delimiter sequence in the given text.
+///
+/// Returns `true` if the text contains the substring `"===="` but does not start with a full long delimiter `"===================="`, `false` otherwise.
+///
+/// # Examples
+///
+/// ```
+/// assert!(contains_partial_delimiter("Title\n====\nContent"));
+/// assert!(!contains_partial_delimiter("==================== full delimiter"));
+/// ```
 #[allow(
-    clippy::single_call_fn,
-    reason = "Helper function for partial delimiter detection"
+clippy::single_call_fn,
+reason = "Helper function for partial delimiter detection"
 )]
 #[inline]
 fn contains_partial_delimiter(text: &str) -> bool {

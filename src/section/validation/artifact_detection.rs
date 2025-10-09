@@ -146,22 +146,24 @@ fn has_html_like_artifacts(text: &str) -> bool {
     return text.contains('<') && text.contains('>');
 }
 
-/// Checks for encoding artifacts in the text.
+/// Detects common text encoding artifacts in a string.
 ///
-/// This function is used by `contains_formatting_artifacts` to detect encoding issues.
+/// This checks for visible signs of encoding problems, including the Unicode replacement
+/// character U+FFFD and common mis-decoded byte sequences produced by UTF-8 ↔ Latin-1 errors
+/// (for example the sequences "\u{e2}\u{20ac}\u{2122}" and "\u{c3}\u{a2}").
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `text` - The text content to check for encoding artifacts
-///
-/// # Returns
-///
-/// Returns `true` if encoding artifacts are detected, `false` otherwise.
+/// ```
+/// assert!(has_encoding_artifacts("\u{FFFD}"));
+/// assert!(has_encoding_artifacts("\u{e2}\u{20ac}\u{2122}"));
+/// assert!(!has_encoding_artifacts("Normal text"));
+/// ```
 #[inline]
 #[allow(
-    clippy::single_match_else,
-    clippy::single_call_fn,
-    reason = "Specialized helper provides focused encoding artifact detection logic"
+clippy::single_match_else,
+clippy::single_call_fn,
+reason = "Specialized helper provides focused encoding artifact detection logic"
 )]
 fn has_encoding_artifacts(text: &str) -> bool {
     // Check for common encoding artifacts

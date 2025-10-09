@@ -333,7 +333,21 @@ impl Default for ProgressReporter {
     }
 }
 
-/// Format duration in human-readable format
+/// Convert a `Duration` into a compact, human-readable string.
+///
+/// Produces:
+/// - seconds as `"Xs"` for durations less than 60 seconds (e.g. `"30s"`),
+/// - minutes and seconds as `"YmZs"` for durations less than one hour (e.g. `"2m15s"`),
+/// - hours and minutes as `"XhYm"` for durations of one hour or more (e.g. `"1h05m"`).
+///
+/// # Examples
+///
+/// ```
+/// use std::time::Duration;
+/// assert_eq!(super::format_duration(Duration::from_secs(45)), "45s");
+/// assert_eq!(super::format_duration(Duration::from_secs(135)), "2m15s");
+/// assert_eq!(super::format_duration(Duration::from_secs(3900)), "1h5m");
+/// ```
 #[must_use]
 #[inline]
 pub fn format_duration(duration: Duration) -> String {
