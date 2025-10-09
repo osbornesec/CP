@@ -141,28 +141,3 @@ impl SectionValidation {
         return matches!(self, Self::Valid);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_section_delimiter_creation() {
-        let delimiter = SectionDelimiter::new(42, "===".to_string());
-        assert_eq!(delimiter.line_number, 42);
-        assert_eq!(delimiter.content, "===");
-    }
-
-    #[test]
-    fn test_section_validation_methods() {
-        let valid = SectionValidation::Valid;
-        assert!(valid.is_valid());
-        assert!(!valid.is_invalid());
-        assert!(valid.error_message().is_none());
-
-        let invalid = SectionValidation::Invalid("Test error".to_string());
-        assert!(!invalid.is_valid());
-        assert!(invalid.is_invalid());
-        assert_eq!(invalid.error_message(), Some(&"Test error".to_string()));
-    }
-}

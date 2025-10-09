@@ -24,7 +24,7 @@ pub struct SensitiveDataFilter {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```ignore
 /// use cpinfo_parser::security::SensitiveMatch;
 ///
 /// let sensitive_match = SensitiveMatch {

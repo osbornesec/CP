@@ -13,14 +13,6 @@ categories = ["command-line-utilities", "parsing"]
 name = "cpinfo-parser"
 path = "src/main.rs"
 
-[[bin]]
-name = "test_runner_38"
-path = "test_runner_38.rs"
-
-[[bin]]
-name = "test_runner_39"
-path = "test_runner_39.rs"
-
 [dependencies]
 # Error handling
 anyhow = "1.0"
@@ -111,11 +103,6 @@ debug = true
 # Benchmarking profile
 [profile.bench]
 debug = false
-
-[[bench]]
-name = "performance"
-harness = false
-path = "benches/performance.rs"
 
 # Clippy Configuration - Strictest Linting
 [lints.clippy]

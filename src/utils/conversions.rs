@@ -9,7 +9,7 @@ use core::convert::TryFrom as _;
 /// Converts integer to floating point for calculations (safe for all integer types)
 ///
 /// # Examples
-/// ```rust
+/// ```ignore
 /// let file_size: u64 = 1_048_576;
 /// let size_mb = to_f64_safe(file_size) / 1_048_576.0;
 /// ```

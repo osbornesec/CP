@@ -135,10 +135,14 @@ impl MemoryMonitor {
 /// In production, queries the system for actual RSS memory usage.
 #[inline]
 #[must_use]
+#[allow(
+    clippy::missing_const_for_fn,
+    reason = "Function conditionally performs runtime process inspection"
+)]
 pub fn get_memory_usage_mb() -> f64 {
     #[cfg(test)]
     {
-        return DEFAULT_TEST_MEMORY_BASE + (rand::random::<f64>() * 20.0);
+        return DEFAULT_TEST_MEMORY_BASE;
     }
 
     #[cfg(not(test))]

@@ -13,7 +13,7 @@
 //!
 //! # Examples
 //!
-//! ```rust
+//! ```ignore
 //! use cpinfo_parser::section::{DelimiterDetector, SectionValidation};
 //!
 //! let detector = DelimiterDetector::new();

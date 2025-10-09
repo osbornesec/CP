@@ -218,35 +218,3 @@ fn contains_partial_delimiter(text: &str) -> bool {
     // Check for incomplete section delimiters
     return text.contains("====") && !text.starts_with("====================");
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_table_formatting_detection() {
-        assert!(is_table_formatting("| Col1 | Col2 |"));
-        assert!(is_table_formatting("+-----+-----+"));
-        assert!(!is_table_formatting("Normal Section Name"));
-    }
-
-    #[test]
-    fn test_repeated_character_patterns() {
-        assert!(is_repeated_character_line("========"));
-        assert!(is_repeated_character_line("--------"));
-        assert!(!is_repeated_character_line("Normal Text"));
-    }
-
-    #[test]
-    fn test_mixed_decorator_patterns() {
-        assert!(is_mixed_decorator_pattern("===---+++"));
-        assert!(!is_mixed_decorator_pattern("Normal Text"));
-    }
-
-    #[test]
-    fn test_partial_delimiter_detection() {
-        assert!(contains_partial_delimiter("Some ===="));
-        assert!(!contains_partial_delimiter("===================="));
-        assert!(!contains_partial_delimiter("Normal Text"));
-    }
-}

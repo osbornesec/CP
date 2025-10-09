@@ -7,21 +7,21 @@ set -euo pipefail
 
 # Colors for output (disabled when piping)
 if [ -t 1 ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    BOLD='\033[1m'
-    NC='\033[0m' # No Color
+	RED='\033[0;31m'
+	GREEN='\033[0;32m'
+	YELLOW='\033[1;33m'
+	BLUE='\033[0;34m'
+	CYAN='\033[0;36m'
+	BOLD='\033[1m'
+	NC='\033[0m' # No Color
 else
-    RED=''
-    GREEN=''
-    YELLOW=''
-    BLUE=''
-    CYAN=''
-    BOLD=''
-    NC=''
+	RED=''
+	GREEN=''
+	YELLOW=''
+	BLUE=''
+	CYAN=''
+	BOLD=''
+	NC=''
 fi
 
 # Configuration
@@ -41,8 +41,8 @@ COMPARISON_FILE="${OUTPUT_DIR}/progress_comparison.txt"
 # Clean lint_report directory on every run
 echo -e "${YELLOW}Cleaning lint_report directory...${NC}"
 if [ -d "${OUTPUT_DIR}" ]; then
-    echo "  Removing existing: ${OUTPUT_DIR}"
-    rm -rf "${OUTPUT_DIR}"
+	echo "  Removing existing: ${OUTPUT_DIR}"
+	rm -rf "${OUTPUT_DIR}"
 fi
 
 # Create output directories
@@ -59,14 +59,14 @@ echo ""
 
 # Step 1: Check prerequisites
 echo -e "${YELLOW}Checking prerequisites...${NC}"
-if ! command -v cargo &> /dev/null; then
-    echo -e "${RED}Error: cargo not found${NC}"
-    exit 1
+if ! command -v cargo &>/dev/null; then
+	echo -e "${RED}Error: cargo not found${NC}"
+	exit 1
 fi
 
-if ! cargo clippy --version &> /dev/null; then
-    echo -e "${RED}Error: clippy not found. Install with: rustup component add clippy${NC}"
-    exit 1
+if ! cargo clippy --version &>/dev/null; then
+	echo -e "${RED}Error: clippy not found. Install with: rustup component add clippy${NC}"
+	exit 1
 fi
 
 # Step 2: Run clippy with all strict rules
@@ -78,19 +78,19 @@ echo "This may take a while..."
 set +e
 
 cargo clippy \
-    --all-targets \
-    --all-features \
-    --color=never \
-    2>&1 | tee "${RAW_OUTPUT}"
+	--all-targets \
+	--all-features \
+	--color=never \
+	2>&1 | tee "${RAW_OUTPUT}"
 
 CLIPPY_EXIT_CODE=$?
 
 # Also get JSON output for better parsing
 cargo clippy \
-    --all-targets \
-    --all-features \
-    --message-format=json \
-    2>&1 > "${JSON_OUTPUT}"
+	--all-targets \
+	--all-features \
+	--message-format=json \
+	>"${JSON_OUTPUT}" 2>&1
 
 set -e
 
@@ -103,7 +103,7 @@ echo ""
 echo -e "${YELLOW}Parsing issues by file...${NC}"
 
 # Create a Python script for parsing (more reliable than bash for complex parsing)
-cat << 'EOF' > "${OUTPUT_DIR}/parse_clippy.py"
+cat <<'EOF' >"${OUTPUT_DIR}/parse_clippy.py"
 #!/usr/bin/env python3
 import json
 import re
@@ -736,11 +736,11 @@ EOF
 chmod +x "${OUTPUT_DIR}/parse_clippy.py"
 
 # Run the Python parser
-if command -v python3 &> /dev/null; then
-    python3 "${OUTPUT_DIR}/parse_clippy.py" "${OUTPUT_DIR}"
-    echo -e "${GREEN}Issue parsing complete${NC}"
+if command -v python3 &>/dev/null; then
+	python3 "${OUTPUT_DIR}/parse_clippy.py" "${OUTPUT_DIR}"
+	echo -e "${GREEN}Issue parsing complete${NC}"
 else
-    echo -e "${YELLOW}Warning: Python 3 not found. Skipping detailed parsing.${NC}"
+	echo -e "${YELLOW}Warning: Python 3 not found. Skipping detailed parsing.${NC}"
 fi
 
 # Step 4: Run additional checks
@@ -748,16 +748,16 @@ echo ""
 echo -e "${YELLOW}Running additional checks...${NC}"
 
 # Format check
-echo "Checking formatting..." 
-cargo fmt --check 2>&1 > "${OUTPUT_DIR}/fmt_check.txt" || echo "Formatting issues found (see fmt_check.txt)"
+echo "Checking formatting..."
+cargo fmt --check >"${OUTPUT_DIR}/fmt_check.txt" 2>&1 || echo "Formatting issues found (see fmt_check.txt)"
 
 # Build check
 echo "Checking compilation..."
-cargo check --all-targets --all-features 2>&1 > "${OUTPUT_DIR}/build_check.txt" || echo "Build issues found (see build_check.txt)"
+cargo check --all-targets --all-features >"${OUTPUT_DIR}/build_check.txt" 2>&1 || echo "Build issues found (see build_check.txt)"
 
 # Doc check
 echo "Checking documentation..."
-cargo doc --no-deps --all-features 2>&1 > "${OUTPUT_DIR}/doc_check.txt" || echo "Doc issues found (see doc_check.txt)"
+cargo doc --no-deps --all-features >"${OUTPUT_DIR}/doc_check.txt" 2>&1 || echo "Doc issues found (see doc_check.txt)"
 
 # Step 5: Create convenience symlinks
 ln -sf "${OUTPUT_DIR}/summary.txt" "lint_summary_latest.txt"
@@ -768,16 +768,16 @@ echo -e "${BOLD}${GREEN}=== Analysis Complete ===${NC}"
 echo ""
 
 if [ -f "${SUMMARY_FILE}" ]; then
-    echo -e "${CYAN}Summary:${NC}"
-    head -n 20 "${SUMMARY_FILE}"
-    echo ""
-    echo -e "${YELLOW}Full summary available at: ${SUMMARY_FILE}${NC}"
+	echo -e "${CYAN}Summary:${NC}"
+	head -n 20 "${SUMMARY_FILE}"
+	echo ""
+	echo -e "${YELLOW}Full summary available at: ${SUMMARY_FILE}${NC}"
 fi
 
 if [ -f "${STATS_FILE}" ]; then
-    echo ""
-    echo -e "${CYAN}Statistics:${NC}"
-    cat "${STATS_FILE}"
+	echo ""
+	echo -e "${CYAN}Statistics:${NC}"
+	cat "${STATS_FILE}"
 fi
 
 echo ""

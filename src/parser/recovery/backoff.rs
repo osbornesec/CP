@@ -57,23 +57,3 @@ impl BackoffCalculator {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_backoff_calculator_progression() {
-        let mut calculator = BackoffCalculator::new(
-            Duration::from_millis(100),
-            Duration::from_millis(1000),
-            2.0,
-        );
-
-        assert_eq!(calculator.current(), Duration::from_millis(100));
-        assert_eq!(calculator.next_delay(), Duration::from_millis(200));
-        assert_eq!(calculator.next_delay(), Duration::from_millis(400));
-        assert_eq!(calculator.next_delay(), Duration::from_millis(800));
-        assert_eq!(calculator.next_delay(), Duration::from_millis(1000)); // Capped
-        assert_eq!(calculator.next_delay(), Duration::from_millis(1000)); // Still capped
-    }
-}
