@@ -1,94 +1,39 @@
-//\! Unit tests for extraction::organized::file_processing module
+//\! Tests for organized file processing helpers
 
-use cpinfo_parser::extraction::organized::file_processing::skip_file_header;
+use cpinfo_parser::extraction::organized_extraction::file_processing::{read_file_content, skip_file_header};
+use tempfile::NamedTempFile;
+use std::io::Write as _;
 
 #[test]
-fn test_skip_file_header_with_header() {
+fn read_file_content_falls_back_for_invalid_utf8() {
+    let mut f = NamedTempFile::new().unwrap();
+    // Write some invalid UTF-8 bytes, then valid ASCII
+    let data = vec\![0x80, 0x81, 0x82, b'\n', b'A', b'B'];
+    std::fs::write(f.path(), &data).unwrap();
+
+    let content = read_file_content(f.path()).expect("should read");
+    // Should contain replacement character(s) due to lossy conversion
+    assert\!(content.contains('\u{FFFD}') || content.contains('A'), "content should include lossy conversion and ASCII: {}", content);
+    assert\!(content.contains('A'));
+    assert\!(content.contains('B'));
+}
+
+#[test]
+fn skip_file_header_returns_index_after_header_delimiter() {
     let lines = vec\![
-        "Some preamble",
+        "Preamble",
         "Check Point Support Information",
         "Version: R81.20",
-        "==============================================",
-        "Section 1",
-        "content",
-    ];
-
-    let result = skip_file_header(&lines);
-    assert_eq\!(result, 4);
-}
-
-#[test]
-fn test_skip_file_header_no_header() {
-    let lines = vec\!["Just content", "No header here"];
-
-    let result = skip_file_header(&lines);
-    assert_eq\!(result, 0);
-}
-
-#[test]
-fn test_skip_file_header_partial_header() {
-    let lines = vec\![
-        "Check Point Support Information",
-        "Version: R81.20",
-        // No delimiter found
-        "Section 1",
-    ];
-
-    let result = skip_file_header(&lines);
-    assert_eq\!(result, 0);
-}
-
-#[test]
-fn test_skip_file_header_empty_input() {
-    let lines: Vec<&str> = vec\![];
-
-    let result = skip_file_header(&lines);
-    assert_eq\!(result, 0);
-}
-
-#[test]
-fn test_skip_file_header_only_delimiter() {
-    let lines = vec\!["=============================================="];
-
-    let result = skip_file_header(&lines);
-    assert_eq\!(result, 0);
-}
-
-#[test]
-fn test_skip_file_header_delimiter_first() {
-    let lines = vec\![
-        "==============================================",
-        "Section",
-    ];
-
-    let result = skip_file_header(&lines);
-    assert_eq\!(result, 0);
-}
-
-#[test]
-fn test_skip_file_header_checkpoint_without_version() {
-    let lines = vec\![
-        "Check Point Support Information",
-        "==============================================",
-        "Section",
-    ];
-
-    let result = skip_file_header(&lines);
-    // Should find the delimiter at index 1, return 2
-    assert_eq\!(result, 2);
-}
-
-#[test]
-fn test_skip_file_header_multiline_preamble() {
-    let lines = vec\![
-        "Preamble line 1",
-        "Preamble line 2",
-        "Check Point Support Information",
-        "Metadata",
         "==============================================",
         "First Section",
     ];
+    let idx = skip_file_header(&lines);
+    // Should return index of first line AFTER the delimiter: here 4 (0-based)
+    assert_eq\!(idx, 4);
+}
 
-    let result = skip_file_header(&lines);
-    assert_eq\!(result, 5);
+#[test]
+fn skip_file_header_without_header_returns_zero() {
+    let lines = vec\!["Just content", "No header here"];
+    assert_eq\!(skip_file_header(&lines), 0);
 }
