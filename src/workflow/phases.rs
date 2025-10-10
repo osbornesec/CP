@@ -5,6 +5,7 @@ use walkdir::WalkDir;
 use super::orchestrator::IntegratedWorkflowOrchestrator;
 use crate::error::Result;
 use crate::progress::ProgressReporter;
+use std::fs::create_dir_all;
 
 #[allow(
     clippy::multiple_inherent_impl,
@@ -121,13 +122,40 @@ impl IntegratedWorkflowOrchestrator {
         reason = "May need access to configuration in future"
     )]
     fn parse_extracted_sections(&self, extracted_sections_dir: &Path) -> (usize, usize, usize) {
-        use tracing::info;
+        use tracing::{info, warn};
+
+        let sections_root = extracted_sections_dir.join("sections");
+        if !sections_root.exists() {
+            info!(
+                "Phase 2: no sections directory found at {:?}; skipping parsing",
+                sections_root
+            );
+            return (0, 0, 0);
+        }
+
+        let commands_dir = extracted_sections_dir.join("commands");
+        if let Err(error) = create_dir_all(&commands_dir) {
+            warn!(
+                "Failed to prepare commands directory {:?}: {}",
+                commands_dir, error
+            );
+            return (0, 0, 0);
+        }
+
+        let files_dir = extracted_sections_dir.join("files");
+        if let Err(error) = create_dir_all(&files_dir) {
+            warn!(
+                "Failed to prepare files directory {:?}: {}",
+                files_dir, error
+            );
+            return (0, 0, 0);
+        }
 
         let mut sections_processed = 0;
         let mut total_commands = 0;
         let mut total_files = 0;
 
-        let section_files: Vec<_> = WalkDir::new(extracted_sections_dir)
+        let section_files: Vec<_> = WalkDir::new(&sections_root)
             .into_iter()
             .filter_map(StdResult::ok)
             .filter(|entry| {
@@ -187,15 +215,12 @@ impl IntegratedWorkflowOrchestrator {
                 let section_parser = crate::section_parser::SectionFileParser::new();
                 match section_parser.parse_section_file(&content) {
                     Ok((command_sections, file_sections)) => {
-                        let parent_dir =
-                            section_file_path.parent().unwrap_or(extracted_sections_dir);
-
                         for section in &command_sections {
                             let safe_filename =
                                 crate::section_parser::sanitization::command_output_filename(
                                     &section.name,
                                 );
-                            let output_path = parent_dir.join(&safe_filename);
+                            let output_path = commands_dir.join(&safe_filename);
 
                             if std::fs::write(&output_path, &section.content).is_ok() {
                                 total_commands += 1;
@@ -207,7 +232,7 @@ impl IntegratedWorkflowOrchestrator {
                                 crate::section_parser::sanitization::file_output_filename(
                                     &section.path,
                                 );
-                            let output_path = parent_dir.join(&safe_filename);
+                            let output_path = files_dir.join(&safe_filename);
 
                             if std::fs::write(&output_path, &section.content).is_ok() {
                                 total_files += 1;

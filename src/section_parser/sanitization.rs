@@ -130,7 +130,11 @@ pub fn command_output_filename(command_name: &str) -> String {
 #[must_use]
 #[inline]
 pub fn file_output_filename(file_path: &str) -> String {
-    return sanitize_file_path(file_path);
+    let sanitized = sanitize_file_path(file_path);
+    if sanitized.ends_with(".txt") {
+        return sanitized;
+    }
+    return format!("{sanitized}.txt");
 }
 
 /// Sanitizes a command name for safe file system use.
@@ -172,13 +176,13 @@ pub fn sanitize_command_name(command: &str) -> String {
 #[must_use]
 #[inline]
 pub fn sanitize_file_path(path: &str) -> String {
-    return path.replace(
-        |character: char| {
-            return !character.is_ascii_alphanumeric()
-                && character != '/'
-                && character != '-'
-                && character != '_';
-        },
-        "_",
-    );
+    return path
+        .chars()
+        .map(|character| match character {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => character,
+            '.' => '.',
+            '/' | '\\' => '_',
+            _ => '_',
+        })
+        .collect();
 }

@@ -11,7 +11,7 @@ pub enum SectionDelimiterType {
     Command23Dash,
     /// Command section delimiter with exactly 24 dashes: `------------------------`
     Command24Dash,
-    /// File section delimiter with exactly 66 dashes: `------------------------------------------------------------------`
+    /// File section delimiter with 66 or more dashes: `------------------------------------------------------------------`
     File66Dash,
 }
 

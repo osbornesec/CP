@@ -2,6 +2,7 @@
 //\! Tests for the SectionExtractor facade
 
 use cpinfo_parser::extraction::basic::SectionExtractor;
+use cpinfo_parser::section_parser::SectionFileParser;
 use std::fs;
 use tempfile::tempdir;
 
@@ -144,4 +145,58 @@ Content 3
 
     let extraction_result = result.unwrap();
     assert_eq\!(extraction_result.sections_extracted, 3);
+}
+
+#[test]
+fn test_extract_sections_organized_handles_file_delimiter() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let file_path = temp_dir.path().join("file_sections.cpinfo");
+
+    let hyphen_delimiter = "-".repeat(67);
+    let content = format!(
+        "Check Point Support Information\n\n{eq}\nSystem Overview\n{eq}\nSystem ready\n\n{hy}\n/var/log/messages\n{hy}\nlog entry one\nlog entry two\n\n{eq}\nSummary\n{eq}\nDone\n",
+        eq = "=".repeat(46),
+        hy = hyphen_delimiter
+    );
+
+    fs::write(&file_path, content).expect("Failed to write test file");
+    let temp_output_dir = tempdir().expect("Failed to create temp output directory");
+
+    let result = SectionExtractor::extract_sections_organized(&file_path, temp_output_dir.path());
+    assert!(result.is_ok());
+
+    let organized_result = result.unwrap();
+    assert!(!organized_result.section_files.iter().any(|path| {
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| name.contains("_var_log_messages"))
+            .unwrap_or(false)
+    }));
+
+    let system_section_path = organized_result
+        .section_files
+        .iter()
+        .find(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| name == "System_Overview.txt")
+                .unwrap_or(false)
+        })
+        .expect("System_Overview section should exist");
+
+    let section_content = fs::read_to_string(system_section_path)
+        .expect("Expected to read organized section content");
+    assert!(section_content.contains(&hyphen_delimiter));
+
+    let parser = SectionFileParser::new();
+    let (_commands, files) = parser
+        .parse_section_file(&section_content)
+        .expect("Section parsing should succeed");
+
+    let file_section = files
+        .iter()
+        .find(|file| file.path == "/var/log/messages")
+        .expect("/var/log/messages file section should be detected");
+    assert!(file_section.content.contains("log entry one"));
+    assert!(file_section.content.contains("log entry two"));
 }

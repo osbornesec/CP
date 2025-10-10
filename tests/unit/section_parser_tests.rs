@@ -102,18 +102,18 @@ mod section_delimiter_tests {
     }
 
     #[test]
-    fn should_reject_67_dash_near_miss_pattern() {
-        // Test 7: Should reject 67-dash near-miss pattern
+    fn should_detect_67_dash_file_delimiter() {
+        // Test 7: Should detect 67-dash file delimiter pattern (variant of file output wrapper)
         // Input: "-------------------------------------------------------------------" (67 dashes)
-        // Expected: None
-        // Purpose: Prevent false positives
+        // Expected: Some(SectionDelimiterType::File66Dash)
+        // Purpose: Accept cpinfo variants that include one additional dash in file delimiters
         
         let detector = SectionDelimiterDetector::new();
         let input = "-------------------------------------------------------------------"; // 67 dashes
         
         let result = detector.detect_section_delimiter(input);
         
-        assert_eq!(result, None);
+        assert_eq!(result, Some(SectionDelimiterType::File66Dash));
     }
 
     #[test]

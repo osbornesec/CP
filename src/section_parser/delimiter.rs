@@ -4,7 +4,7 @@ use super::types::SectionDelimiterType;
 ///
 /// This detector analyzes line content to identify section delimiters
 /// used in section files. It supports detection of command sections
-/// (23-dash and 24-dash patterns) and file sections (66-dash pattern).
+/// (23-dash and 24-dash patterns) and file sections (66+ dash pattern).
 ///
 /// # Performance
 ///
@@ -33,20 +33,21 @@ impl SectionDelimiterDetector {
     pub fn detect_section_delimiter(&self, input_line: &str) -> Option<SectionDelimiterType> {
         let trimmed_content = input_line.trim();
 
-        match trimmed_content.len() {
-            23 if Self::is_all_dashes(trimmed_content) => {
-                return Some(SectionDelimiterType::Command23Dash);
-            }
-            24 if Self::is_all_dashes(trimmed_content) => {
-                return Some(SectionDelimiterType::Command24Dash);
-            }
-            66 if Self::is_all_dashes(trimmed_content) => {
-                return Some(SectionDelimiterType::File66Dash);
-            }
-            _ => {
-                return None;
-            }
+        let length = trimmed_content.len();
+
+        if length == 23 && Self::is_all_dashes(trimmed_content) {
+            return Some(SectionDelimiterType::Command23Dash);
         }
+
+        if length == 24 && Self::is_all_dashes(trimmed_content) {
+            return Some(SectionDelimiterType::Command24Dash);
+        }
+
+        if length >= 66 && Self::is_all_dashes(trimmed_content) {
+            return Some(SectionDelimiterType::File66Dash);
+        }
+
+        return None;
     }
 
     /// Helper: Check if string contains only dash characters

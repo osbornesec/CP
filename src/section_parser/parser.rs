@@ -38,132 +38,109 @@ impl SectionFileParser {
         lines: &[&str],
         start_index: usize,
     ) -> Option<String> {
-        if start_index + 2_usize >= lines.len() {
+        if !self.is_command_header(lines, start_index) {
             return None;
         }
 
-        let opening_line = match lines.get(start_index) {
-            Some(line_content) => line_content,
-            None => return None,
-        };
+        let content_start = start_index + 3_usize;
+        let content_end = self.find_next_section_start(lines, content_start);
 
-        let opening_delimiter = match self.detector.detect_section_delimiter(opening_line) {
-            Some(delimiter_type) => delimiter_type,
-            None => return None,
-        };
-
-        let closing_line = match lines.get(start_index + 2_usize) {
-            Some(line_content) => line_content,
-            None => return None,
-        };
-
-        if let Some(closing_delimiter) = self.detector.detect_section_delimiter(closing_line) {
-            if opening_delimiter == closing_delimiter {
-                let content_start = start_index + 3_usize;
-                let content_end = self.find_next_section_start(lines, content_start);
-
-                let first_line = match lines.get(start_index) {
-                    Some(line_content) => line_content,
-                    None => return None,
-                };
-                let second_line = match lines.get(start_index + 1_usize) {
-                    Some(line_content) => line_content,
-                    None => return None,
-                };
-                let third_line = match lines.get(start_index + 2_usize) {
-                    Some(line_content) => line_content,
-                    None => return None,
-                };
-
-                let mut section_lines = vec![*first_line, *second_line, *third_line];
-
-                for content_line in lines
-                    .iter()
-                    .take(content_end.min(lines.len()))
-                    .skip(content_start)
-                {
-                    section_lines.push(*content_line);
-                }
-
-                return Some(section_lines.join("\n"));
-            }
+        let mut section_lines = Vec::new();
+        for line in lines
+            .iter()
+            .take(content_end.min(lines.len()))
+            .skip(start_index)
+        {
+            section_lines.push(*line);
         }
 
-        return None;
+        return Some(section_lines.join("\n"));
     }
 
     /// Extract file section content
     #[inline]
     fn extract_file_section_content(&self, lines: &[&str], start_index: usize) -> Option<String> {
-        if start_index + 2_usize >= lines.len() {
+        if !self.is_file_header(lines, start_index) {
             return None;
         }
 
-        let opening_line = match lines.get(start_index) {
-            Some(line_content) => line_content,
-            None => return None,
-        };
+        let content_start = start_index + 3_usize;
+        let content_end = self.find_next_section_start(lines, content_start);
 
-        if self.detector.detect_section_delimiter(opening_line)
-            != Some(SectionDelimiterType::File66Dash)
+        let mut section_lines = Vec::new();
+        for line in lines
+            .iter()
+            .take(content_end.min(lines.len()))
+            .skip(start_index)
         {
-            return None;
+            section_lines.push(*line);
         }
 
-        let closing_line = match lines.get(start_index + 2_usize) {
-            Some(line_content) => line_content,
-            None => return None,
-        };
-
-        if self.detector.detect_section_delimiter(closing_line)
-            == Some(SectionDelimiterType::File66Dash)
-        {
-            let content_start = start_index + 3_usize;
-            let content_end = self.find_next_section_start(lines, content_start);
-
-            let first_line = match lines.get(start_index) {
-                Some(line_content) => line_content,
-                None => return None,
-            };
-            let second_line = match lines.get(start_index + 1_usize) {
-                Some(line_content) => line_content,
-                None => return None,
-            };
-            let third_line = match lines.get(start_index + 2_usize) {
-                Some(line_content) => line_content,
-                None => return None,
-            };
-
-            let mut section_lines = vec![*first_line, *second_line, *third_line];
-
-            for content_line in lines
-                .iter()
-                .take(content_end.min(lines.len()))
-                .skip(content_start)
-            {
-                section_lines.push(*content_line);
-            }
-
-            return Some(section_lines.join("\n"));
-        }
-
-        return None;
+        return Some(section_lines.join("\n"));
     }
 
     /// Find the next section start index
     #[must_use]
     #[inline]
     fn find_next_section_start(&self, lines: &[&str], start_index: usize) -> usize {
-        for (line_index, line_content) in lines.iter().enumerate().skip(start_index) {
-            if self
-                .detector
-                .detect_section_delimiter(line_content)
-                .is_some()
-            {
+        for line_index in start_index..lines.len() {
+            if self.is_command_header(lines, line_index) || self.is_file_header(lines, line_index) {
                 return line_index;
             }
         }
         return lines.len();
+    }
+
+    #[inline]
+    fn is_command_header(&self, lines: &[&str], index: usize) -> bool {
+        if index + 2_usize >= lines.len() {
+            return false;
+        }
+
+        let opening_delimiter = match self.detector.detect_section_delimiter(lines[index]) {
+            Some(
+                delimiter @ (SectionDelimiterType::Command23Dash
+                | SectionDelimiterType::Command24Dash),
+            ) => delimiter,
+            _ => return false,
+        };
+
+        let command_name = lines[index + 1_usize].trim();
+        if command_name.is_empty() {
+            return false;
+        }
+
+        match self
+            .detector
+            .detect_section_delimiter(lines[index + 2_usize])
+        {
+            Some(delimiter) if delimiter == opening_delimiter => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    fn is_file_header(&self, lines: &[&str], index: usize) -> bool {
+        if index + 2_usize >= lines.len() {
+            return false;
+        }
+
+        if self.detector.detect_section_delimiter(lines[index])
+            != Some(SectionDelimiterType::File66Dash)
+        {
+            return false;
+        }
+
+        let path = lines[index + 1_usize].trim();
+        if path.is_empty() {
+            return false;
+        }
+
+        matches!(
+            self.detector
+                .detect_section_delimiter(lines[index + 2_usize]),
+            Some(SectionDelimiterType::File66Dash)
+        )
     }
 
     /// Create a new section file parser
@@ -325,7 +302,7 @@ impl SectionFileParser {
 
         if opening_delimiter != SectionDelimiterType::File66Dash {
             return Err(CpinfoError::ParseError {
-                message: "Expected file delimiter (66 dashes)".to_owned(),
+                message: "Expected file delimiter (>= 66 dashes)".to_owned(),
                 line: 0_usize,
             });
         }
@@ -406,43 +383,31 @@ impl SectionFileParser {
 
         let mut line_index = 0_usize;
         while line_index < lines.len() {
-            let current_line = match lines.get(line_index) {
-                Some(line_content) => line_content,
-                None => break,
-            };
-            if let Some(delimiter_type) = self.detector.detect_section_delimiter(current_line) {
-                match delimiter_type {
-                    SectionDelimiterType::Command24Dash | SectionDelimiterType::Command23Dash => {
-                        let command_section_result =
-                            self.extract_command_section_content(&lines, line_index);
-                        if let Some(command_section_content) = command_section_result {
-                            if let Ok(cmd_section) =
-                                self.parse_command_section(&command_section_content)
-                            {
-                                command_sections.push(cmd_section);
-                            }
-                            line_index = self.find_next_section_start(&lines, line_index + 1_usize);
-                        } else {
-                            line_index += 1_usize;
-                        }
-                    }
-                    SectionDelimiterType::File66Dash => {
-                        let file_section_result =
-                            self.extract_file_section_content(&lines, line_index);
-                        if let Some(file_section_content) = file_section_result {
-                            if let Ok(file_section) = self.parse_file_section(&file_section_content)
-                            {
-                                file_sections.push(file_section);
-                            }
-                            line_index = self.find_next_section_start(&lines, line_index + 1_usize);
-                        } else {
-                            line_index += 1_usize;
-                        }
+            if self.is_command_header(&lines, line_index) {
+                if let Some(command_section_content) =
+                    self.extract_command_section_content(&lines, line_index)
+                {
+                    if let Ok(cmd_section) = self.parse_command_section(&command_section_content) {
+                        command_sections.push(cmd_section);
                     }
                 }
-            } else {
-                line_index += 1_usize;
+                line_index = self.find_next_section_start(&lines, line_index + 3_usize);
+                continue;
             }
+
+            if self.is_file_header(&lines, line_index) {
+                if let Some(file_section_content) =
+                    self.extract_file_section_content(&lines, line_index)
+                {
+                    if let Ok(file_section) = self.parse_file_section(&file_section_content) {
+                        file_sections.push(file_section);
+                    }
+                }
+                line_index = self.find_next_section_start(&lines, line_index + 3_usize);
+                continue;
+            }
+
+            line_index += 1_usize;
         }
 
         return Ok((command_sections, file_sections));

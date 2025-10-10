@@ -17,8 +17,8 @@ use crate::extraction::writer::{
 
 /// Parameters for organized section extraction to reduce function argument count
 struct OrganizedExtractionParams<'content> {
-    /// Category directory for organized output
-    category_dir: &'content Path,
+    /// Directory where sections are stored
+    sections_dir: &'content Path,
     /// Ending line index for content
     content_end: usize,
     /// Starting line index for content
@@ -38,6 +38,7 @@ struct OrganizedExtractionState {
     directories_created: Vec<PathBuf>,
     section_files: Vec<PathBuf>,
     writer_config: WriterConfig,
+    sections_dir: PathBuf,
 }
 
 impl OrganizedExtractionState {
@@ -45,32 +46,34 @@ impl OrganizedExtractionState {
         self.section_files.push(file);
     }
 
-    fn ensure_category_directory(&mut self, base_path: &Path, category: &str) -> Result<PathBuf> {
-        let category_dir = base_path.join(category);
-
-        if !category_dir.exists() {
-            match create_dir_all(&category_dir) {
-                Ok(()) => {}
-                Err(create_error) => return Err(create_error.into()),
-            }
-            self.directories_created.push(category_dir.clone());
-            info!("\u{1f4c1} Created category directory: {:?}", category_dir);
-        }
-
-        return Ok(category_dir);
-    }
-
     #[allow(
         clippy::single_call_fn,
         reason = "Semantic clarity and code organization"
     )]
     #[inline]
-    fn new() -> Self {
-        return Self {
-            directories_created: Vec::new(),
+    fn new(base_path: &Path) -> Result<Self> {
+        let sections_dir = base_path.join("sections");
+
+        let mut directories_created = Vec::new();
+
+        let sections_dir_created = !sections_dir.exists();
+        if sections_dir_created {
+            match create_dir_all(&sections_dir) {
+                Ok(()) => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+
+        if sections_dir_created {
+            directories_created.push(sections_dir.clone());
+        }
+
+        return Ok(Self {
+            directories_created,
             section_files: Vec::new(),
             writer_config: WriterConfig::default(),
-        };
+            sections_dir,
+        });
     }
 }
 
@@ -153,7 +156,7 @@ fn process_organized_sections(
     lines: &[&str],
     output_path: &Path,
 ) -> Result<OrganizedExtractionState> {
-    let mut state = OrganizedExtractionState::new();
+    let mut state = OrganizedExtractionState::new(output_path)?;
     let total_sections = count_estimated_sections(lines);
 
     info!(
@@ -178,14 +181,8 @@ fn process_organized_sections(
                 section_index, total_sections, section_name
             );
 
-            let category = categorize_section(&section_name);
-            let category_dir = match state.ensure_category_directory(output_path, &category) {
-                Ok(directory) => directory,
-                Err(directory_error) => return Err(directory_error),
-            };
-
             let extraction_params = OrganizedExtractionParams {
-                category_dir: &category_dir,
+                sections_dir: &state.sections_dir,
                 content_end,
                 content_start,
                 lines,
@@ -273,15 +270,31 @@ fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usiz
             None => continue,
         };
 
-        if current_line == DELIMITER && line_index + 1 < lines.len() {
+        if current_line == DELIMITER && line_index + 2 < lines.len() {
             let section_name = match lines.get(line_index + 1) {
                 Some(name) => name.trim().to_owned(),
                 None => continue,
             };
 
+            let closing_candidate = match lines.get(line_index + 2) {
+                Some(line) => line.trim(),
+                None => continue,
+            };
+
+            if section_name.is_empty()
+                || section_name == DELIMITER
+                || closing_candidate != DELIMITER
+            {
+                continue;
+            }
+
+            if line_index + 3 >= lines.len() {
+                return Some((section_name, line_index + 3, lines.len()));
+            }
+
             if !section_name.is_empty() && section_name != DELIMITER {
                 // Find content boundaries
-                let content_start = line_index + 3; // Skip delimiter, name, and next delimiter
+                let content_start = line_index + 3; // Skip delimiter, name, and closing delimiter
                 let content_end = find_section_content_end(lines, content_start);
 
                 return Some((section_name, content_start, content_end));
@@ -301,12 +314,47 @@ fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usiz
 fn find_section_content_end(lines: &[&str], start_index: usize) -> usize {
     const DELIMITER: &str = "==============================================";
 
-    for i in start_index..lines.len() {
-        if let Some(line) = lines.get(i) {
-            if line.trim() == DELIMITER {
-                return i;
+    let mut index = start_index;
+    while index + 2 < lines.len() {
+        let current_line = match lines.get(index) {
+            Some(line) => line.trim(),
+            None => {
+                index += 1;
+                continue;
             }
+        };
+
+        if current_line != DELIMITER {
+            index += 1;
+            continue;
         }
+
+        let potential_name = match lines.get(index + 1) {
+            Some(line) => line.trim(),
+            None => {
+                index += 1;
+                continue;
+            }
+        };
+
+        if potential_name.is_empty() || potential_name == DELIMITER {
+            index += 1;
+            continue;
+        }
+
+        let closing_line = match lines.get(index + 2) {
+            Some(line) => line.trim(),
+            None => {
+                index += 1;
+                continue;
+            }
+        };
+
+        if closing_line == DELIMITER {
+            return index;
+        }
+
+        index += 1;
     }
 
     return lines.len();
@@ -341,7 +389,7 @@ fn extract_organized_section(
     writer_config: &WriterConfig,
 ) -> Result<Option<PathBuf>> {
     let safe_name = sanitize_filename(params.section_name);
-    let section_file = params.category_dir.join(format!("{safe_name}.txt"));
+    let section_file = params.sections_dir.join(format!("{safe_name}.txt"));
 
     debug!("   \u{1f3af} Target file: {:?}", section_file);
     debug!(
@@ -360,41 +408,6 @@ fn extract_organized_section(
     };
 
     return write_section_with_progress(&write_params, writer_config);
-}
-
-/// Categorize a section name into a directory category
-#[allow(
-    clippy::single_call_fn,
-    reason = "Semantic clarity and code organization"
-)]
-#[inline]
-fn categorize_section(section_name: &str) -> String {
-    let name_lower = section_name.to_lowercase();
-
-    let category = match name_lower.as_str() {
-        name if name.contains("system") || name.contains("general") => "system",
-        name if name.contains("network")
-            || name.contains("interface")
-            || name.contains("routing") =>
-        {
-            "network"
-        }
-        name if name.contains("security") || name.contains("firewall") || name.contains("vpn") => {
-            "security"
-        }
-        name if name.contains("policy") || name.contains("rule") => "policy",
-        name if name.contains("log") || name.contains("audit") => "logs",
-        name if name.contains("performance") || name.contains("cpu") || name.contains("memory") => {
-            "performance"
-        }
-        name if name.contains("database") || name.contains("db") => "database",
-        name if name.contains("cluster") || name.contains("ha") => "clustering",
-        name if name.contains("update") || name.contains("hotfix") => "updates",
-        name if name.contains("license") => "licensing",
-        _ => "misc",
-    };
-
-    return category.to_owned();
 }
 
 // Tests moved to tests/organized_extraction_tests.rs for cleaner code organization
