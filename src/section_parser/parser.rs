@@ -69,55 +69,7 @@ impl SectionFileParser {
         for line in lines
             .iter()
             .take(content_end.min(lines.len()))
-            .skip(start_index)
-        {
-            section_lines.push(*line);
-        }
-
-        return Some(section_lines.join("\n"));
-    }
-
-    /// Extracts a file section (header plus body) starting at the given line index.
-    ///
-    /// If the line at `start_index` begins a valid file header, returns the section's text
-    /// composed of the header lines and all following lines up to (but not including) the
-    /// next section header. Returns `None` if `start_index` does not start a file header.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let parser = SectionFileParser::new();
-    /// let lines = [
-    ///     "----------------------------------------------------------------------", // file header (>=66 dashes)
-    ///     "path/to/file.txt",
-    ///     "----------------------------------------------------------------------",
-    ///     "line 1 of file",
-    ///     "line 2 of file",
-    ///     "----------------------------------------------------------------------", // next section starts here
-    /// ];
-    /// let content = parser.extract_file_section_content(&lines, 0).unwrap();
-    /// assert!(content.starts_with("----------------------------------------------------------------------\npath/to/file.txt"));
-    /// assert!(content.contains("line 1 of file"));
-    /// ```
-    #[inline]
-    fn extract_file_section_content(&self, lines: &[&str], start_index: usize) -> Option<String> {
-        if !self.is_file_header(lines, start_index) {
-            return None;
-        }
-
-        let content_start = start_index + 3_usize;
-        let content_end = self.find_next_section_start(lines, content_start);
-
-        let mut section_lines = Vec::new();
-        for line in lines
-            .iter()
-            .take(content_end.min(lines.len()))
-            .skip(start_index)
-        {
-            section_lines.push(*line);
-        }
-
-        return Some(section_lines.join("\n"));
+        return Some(lines[start_index..content_end.min(lines.len())].join("\n"));
     }
 
     /// Locate the next command or file section header starting from `start_index`.
