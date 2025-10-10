@@ -1,3 +1,4 @@
+use crate::checkpoint::regex_utils::{extract_u32, require_capture};
 use crate::checkpoint::types::{ClusterConfiguration, ClusterMember, PolicyRule, SecurityPolicies};
 use crate::error::Result;
 use regex::Regex;
@@ -15,86 +16,38 @@ pub fn parse_security_policies_impl<P: AsRef<Path>>(path: P) -> Result<SecurityP
         Err(io_error) => return Err(io_error.into()),
     };
 
-    let total_rules_regex = match Regex::new(r"Total Rules:\s*(\d+)").map_err(|regex_error| {
-        return crate::error::CpinfoError::validation_error(format!(
-            "Invalid total rules regex pattern: {regex_error}"
-        ));
-    }) {
-        Ok(regex_pattern) => regex_pattern,
-        Err(regex_error) => return Err(regex_error),
+    let total_rules = match extract_u32(
+        &content,
+        r"Total Rules:\s*(\d+)",
+        "total rules",
+        "Total rules not found",
+    ) {
+        Ok(value) => value,
+        Err(error) => return Err(error),
     };
-    let total_rules: u32 = match total_rules_regex
-        .captures(&content)
-        .ok_or_else(|| return crate::error::CpinfoError::validation_error("Total rules not found"))
-        .and_then(|captures| {
-            return captures[1].parse().map_err(|_parse_error| {
-                return crate::error::CpinfoError::validation_error("Invalid total rules count");
-            });
-        }) {
-        Ok(rules_count) => rules_count,
-        Err(count_error) => return Err(count_error),
+    let allow_rules = match extract_u32(
+        &content,
+        r"Allow Rules:\s*(\d+)",
+        "allow rules",
+        "Allow rules count not found",
+    ) {
+        Ok(value) => value,
+        Err(error) => return Err(error),
     };
-
-    let allow_rules_regex = match Regex::new(r"Allow Rules:\s*(\d+)").map_err(|regex_error| {
-        return crate::error::CpinfoError::validation_error(format!(
-            "Invalid allow rules regex pattern: {regex_error}"
-        ));
-    }) {
-        Ok(regex_pattern) => regex_pattern,
-        Err(regex_error) => return Err(regex_error),
-    };
-    let allow_rules: u32 = match allow_rules_regex
-        .captures(&content)
-        .ok_or_else(|| {
-            return crate::error::CpinfoError::validation_error("Allow rules count not found");
-        })
-        .and_then(|captures| {
-            return captures[1].parse().map_err(|_parse_error| {
-                return crate::error::CpinfoError::validation_error("Invalid allow rules count");
-            });
-        }) {
-        Ok(rules_count) => rules_count,
-        Err(count_error) => return Err(count_error),
+    let drop_rules = match extract_u32(
+        &content,
+        r"Drop Rules:\s*(\d+)",
+        "drop rules",
+        "Drop rules count not found",
+    ) {
+        Ok(value) => value,
+        Err(error) => return Err(error),
     };
 
-    let drop_rules_regex = match Regex::new(r"Drop Rules:\s*(\d+)").map_err(|regex_error| {
-        return crate::error::CpinfoError::validation_error(format!(
-            "Invalid drop rules regex pattern: {regex_error}"
-        ));
-    }) {
-        Ok(regex_pattern) => regex_pattern,
-        Err(regex_error) => return Err(regex_error),
+    let rules = match parse_policy_rules(&content) {
+        Ok(parsed_rules) => parsed_rules,
+        Err(error) => return Err(error),
     };
-    let drop_rules: u32 = match drop_rules_regex
-        .captures(&content)
-        .ok_or_else(|| {
-            return crate::error::CpinfoError::validation_error("Drop rules count not found");
-        })
-        .and_then(|captures| {
-            return captures[1].parse().map_err(|_parse_error| {
-                return crate::error::CpinfoError::validation_error("Invalid drop rules count");
-            });
-        }) {
-        Ok(rules_count) => rules_count,
-        Err(count_error) => return Err(count_error),
-    };
-
-    let rule_regex = match Regex::new(r"Rule \d+:\s*Name:\s*([^\r\n]+)\s*Action:\s*(\w+)\s*Source:\s*([^\r\n]+)\s*Destination:\s*([^\r\n]+)\s*Service:\s*([^\r\n]+)")
-            .map_err(|rule_regex_error| return crate::error::CpinfoError::validation_error(format!("Invalid rule regex pattern: {rule_regex_error}"))) {
-        Ok(regex_pattern) => regex_pattern,
-        Err(regex_error) => return Err(regex_error),
-    };
-    let mut rules = Vec::new();
-
-    for captures in rule_regex.captures_iter(&content) {
-        rules.push(PolicyRule {
-            name: captures[1].trim().to_owned(),
-            action: captures[2].to_owned(),
-            source: captures[3].trim().to_owned(),
-            destination: captures[4].trim().to_owned(),
-            service: captures[5].trim().to_owned(),
-        });
-    }
 
     return Ok(SecurityPolicies {
         allow_rules,
@@ -102,6 +55,72 @@ pub fn parse_security_policies_impl<P: AsRef<Path>>(path: P) -> Result<SecurityP
         rules,
         total_rules,
     });
+}
+
+#[allow(
+    clippy::single_call_fn,
+    reason = "Helper keeps policy rule parsing focused and testable"
+)]
+#[inline]
+fn parse_policy_rules(content: &str) -> Result<Vec<PolicyRule>> {
+    let rule_regex = match Regex::new(r"Rule \d+:\s*Name:\s*([^\r\n]+)\s*Action:\s*(\w+)\s*Source:\s*([^\r\n]+)\s*Destination:\s*([^\r\n]+)\s*Service:\s*([^\r\n]+)")
+        .map_err(|rule_regex_error| {
+            return crate::error::CpinfoError::validation_error(format!(
+                "Invalid policy rule regex pattern: {rule_regex_error}"
+            ));
+        }) {
+        Ok(regex_pattern) => regex_pattern,
+        Err(regex_error) => return Err(regex_error),
+    };
+
+    return rule_regex
+        .captures_iter(content)
+        .map(|captures| {
+            let name_match =
+                match require_capture(&captures, 1, "Invalid policy rule capture: missing name") {
+                    Ok(value) => value,
+                    Err(error) => return Err(error),
+                };
+            let action_match = match require_capture(
+                &captures,
+                2,
+                "Invalid policy rule capture: missing action",
+            ) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let source_match = match require_capture(
+                &captures,
+                3,
+                "Invalid policy rule capture: missing source",
+            ) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let destination_match = match require_capture(
+                &captures,
+                4,
+                "Invalid policy rule capture: missing destination",
+            ) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let service_match =
+                match require_capture(&captures, 5, "Invalid policy rule capture: missing service")
+                {
+                    Ok(value) => value,
+                    Err(error) => return Err(error),
+                };
+
+            return Ok(PolicyRule {
+                action: action_match.to_owned(),
+                destination: destination_match.trim().to_owned(),
+                name: name_match.trim().to_owned(),
+                service: service_match.trim().to_owned(),
+                source: source_match.trim().to_owned(),
+            });
+        })
+        .collect();
 }
 
 /// Implementation function for cluster configuration parsing
@@ -167,14 +186,20 @@ fn extract_cluster_type(content: &str) -> Result<String> {
         Ok(regex_pattern) => regex_pattern,
         Err(regex_error) => return Err(regex_error),
     };
-    let cluster_type = match cluster_type_regex
-        .captures(content)
-        .ok_or_else(|| return crate::error::CpinfoError::validation_error("Cluster type not found"))
-    {
-        Ok(capture_match) => capture_match[1].to_owned(),
-        Err(capture_error) => return Err(capture_error),
+    let captures = match cluster_type_regex.captures(content) {
+        Some(capture_match) => capture_match,
+        None => {
+            return Err(crate::error::CpinfoError::validation_error(
+                "Cluster type not found",
+            ))
+        }
     };
-    return Ok(cluster_type);
+    let cluster_type_match =
+        match require_capture(&captures, 1, "Invalid cluster type capture: missing value") {
+            Ok(value) => value,
+            Err(error) => return Err(error),
+        };
+    return Ok(cluster_type_match.to_owned());
 }
 
 /// Extract member count from cpinfo content
@@ -204,16 +229,26 @@ fn extract_member_count(content: &str) -> Result<u32> {
         Ok(regex_pattern) => regex_pattern,
         Err(regex_error) => return Err(regex_error),
     };
-    let member_count: u32 = match member_count_regex
-        .captures(content)
-        .ok_or_else(|| return crate::error::CpinfoError::validation_error("Member count not found"))
-        .and_then(|captures| {
-            return captures[1].parse().map_err(|_parse_error| {
-                return crate::error::CpinfoError::validation_error("Invalid member count");
-            });
-        }) {
+    let captures = match member_count_regex.captures(content) {
+        Some(capture_match) => capture_match,
+        None => {
+            return Err(crate::error::CpinfoError::validation_error(
+                "Member count not found",
+            ))
+        }
+    };
+    let member_count_match =
+        match require_capture(&captures, 1, "Invalid member count: missing capture") {
+            Ok(value) => value,
+            Err(error) => return Err(error),
+        };
+    let member_count: u32 = match member_count_match.trim().parse() {
         Ok(count_value) => count_value,
-        Err(count_error) => return Err(count_error),
+        Err(_parse_error) => {
+            return Err(crate::error::CpinfoError::validation_error(
+                "Invalid member count",
+            ))
+        }
     };
     return Ok(member_count);
 }
@@ -246,16 +281,31 @@ fn extract_local_member(content: &str) -> Result<ClusterMember> {
         Ok(regex_pattern) => regex_pattern,
         Err(regex_error) => return Err(regex_error),
     };
-    let local_captures = match local_member_regex
-        .captures(content)
-        .ok_or_else(|| return crate::error::CpinfoError::validation_error("Local member not found"))
-    {
-        Ok(capture_match) => capture_match,
-        Err(capture_error) => return Err(capture_error),
+    let local_captures = match local_member_regex.captures(content) {
+        Some(capture_match) => capture_match,
+        None => {
+            return Err(crate::error::CpinfoError::validation_error(
+                "Local member not found",
+            ))
+        }
     };
 
-    let local_member_name = local_captures[1].trim().to_owned();
-    let _local_member_state = local_captures[2].to_owned();
+    let local_member_name = match require_capture(
+        &local_captures,
+        1,
+        "Invalid local member capture: missing name",
+    ) {
+        Ok(value) => value.trim().to_owned(),
+        Err(error) => return Err(error),
+    };
+    let _local_member_state = match require_capture(
+        &local_captures,
+        2,
+        "Invalid local member capture: missing state",
+    ) {
+        Ok(value) => value.to_owned(),
+        Err(error) => return Err(error),
+    };
 
     let member_regex = match Regex::new(&format!(
         r"Member \d+:\s*Name:\s*{}\s*State:\s*(\w+)\s*IP:\s*([^\r\n]+)\s*Priority:\s*(\d+)",
@@ -269,18 +319,54 @@ fn extract_local_member(content: &str) -> Result<ClusterMember> {
         Ok(regex_pattern) => regex_pattern,
         Err(regex_error) => return Err(regex_error),
     };
-    let local_details = match member_regex.captures(content).ok_or_else(|| {
-        return crate::error::CpinfoError::validation_error("Local member details not found");
-    }) {
-        Ok(capture_match) => capture_match,
-        Err(capture_error) => return Err(capture_error),
+    let local_details = match member_regex.captures(content) {
+        Some(capture_match) => capture_match,
+        None => {
+            return Err(crate::error::CpinfoError::validation_error(
+                "Local member details not found",
+            ))
+        }
+    };
+
+    let local_state_details_match = match require_capture(
+        &local_details,
+        1,
+        "Invalid local member details: missing state",
+    ) {
+        Ok(value) => value,
+        Err(error) => return Err(error),
+    };
+    let local_ip_match = match require_capture(
+        &local_details,
+        2,
+        "Invalid local member details: missing IP",
+    ) {
+        Ok(value) => value,
+        Err(error) => return Err(error),
+    };
+    let local_priority_match = match require_capture(
+        &local_details,
+        3,
+        "Invalid local member details: missing priority",
+    ) {
+        Ok(value) => value,
+        Err(error) => return Err(error),
+    };
+
+    let local_priority = match local_priority_match.trim().parse::<u32>() {
+        Ok(priority) => priority,
+        Err(_parse_error) => {
+            return Err(crate::error::CpinfoError::validation_error(
+                "Invalid local member priority",
+            ))
+        }
     };
 
     let local_member = ClusterMember {
         name: local_member_name,
-        state: local_details[1].to_owned(),
-        ip: local_details[2].trim().to_owned(),
-        priority: local_details[3].parse::<u32>().unwrap_or_default(),
+        state: local_state_details_match.to_owned(),
+        ip: local_ip_match.trim().to_owned(),
+        priority: local_priority,
     };
     return Ok(local_member);
 }
@@ -319,13 +405,40 @@ fn extract_remote_members(content: &str, local_member_name: &str) -> Result<Vec<
     let mut remote_members = Vec::new();
 
     for captures in all_members_regex.captures_iter(content) {
-        let name = captures[1].trim().to_owned();
+        let name = match require_capture(&captures, 1, "Invalid member capture: missing name") {
+            Ok(value) => value.trim().to_owned(),
+            Err(error) => return Err(error),
+        };
         if name != local_member_name {
+            let state_match =
+                match require_capture(&captures, 2, "Invalid member capture: missing state") {
+                    Ok(value) => value,
+                    Err(error) => return Err(error),
+                };
+            let ip_match = match require_capture(&captures, 3, "Invalid member capture: missing IP")
+            {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let priority_match =
+                match require_capture(&captures, 4, "Invalid member capture: missing priority") {
+                    Ok(value) => value,
+                    Err(error) => return Err(error),
+                };
+            let member_priority = match priority_match.trim().parse::<u32>() {
+                Ok(priority) => priority,
+                Err(_parse_error) => {
+                    return Err(crate::error::CpinfoError::validation_error(
+                        "Invalid remote member priority",
+                    ))
+                }
+            };
+
             remote_members.push(ClusterMember {
                 name,
-                state: captures[2].to_owned(),
-                ip: captures[3].trim().to_owned(),
-                priority: captures[4].parse::<u32>().unwrap_or_default(),
+                state: state_match.to_owned(),
+                ip: ip_match.trim().to_owned(),
+                priority: member_priority,
             });
         }
     }

@@ -18,7 +18,6 @@ use crate::Result;
 use std::collections::HashMap;
 use std::io::{BufRead as _, BufReader};
 use std::path::Path;
-use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 /// Trait for monitoring commands
@@ -48,8 +47,13 @@ impl<'path_lifetime> CacheMonitorCommand<'path_lifetime> {
     }
 }
 
-/// Cache data type alias to simplify the complex type
-type CacheDataType = Arc<Mutex<(HashMap<String, String>, usize, usize)>>;
+/// Local cache bookkeeping to avoid shared mutable state across commands
+#[derive(Default)]
+struct CacheState {
+    entries: HashMap<String, String>,
+    hits: usize,
+    misses: usize,
+}
 
 impl MonitorCommand<CacheStats> for CacheMonitorCommand<'_> {
     #[inline]
@@ -67,9 +71,7 @@ impl CacheMonitorCommand<'_> {
         start_time: Instant,
         bytes_processed: u64,
         sections_extracted: usize,
-        local_cache_hits: usize,
-        local_cache_misses: usize,
-        cache_data: &CacheDataType,
+        cache_state: &CacheState,
     ) -> Result<CacheStats> {
         let processing_duration_ms = match u64::try_from(start_time.elapsed().as_millis()) {
             Ok(duration) => duration,
@@ -81,61 +83,30 @@ impl CacheMonitorCommand<'_> {
             }
         };
 
-        let (cache_hits, cache_misses, cache_hit_rate) = cache_data.lock().map_or_else(
-            |_| {
-                return (
-                    local_cache_hits,
-                    local_cache_misses,
-                    if local_cache_hits + local_cache_misses > 0 {
-                        #[allow(
-                            clippy::cast_precision_loss,
-                            reason = "Statistical calculations require f64 precision"
-                        )]
-                        let local_hits_f64 = local_cache_hits as f64;
-                        #[allow(
-                            clippy::cast_precision_loss,
-                            reason = "Statistical calculations require f64 precision"
-                        )]
-                        let total_local_f64 = (local_cache_hits + local_cache_misses) as f64;
-                        #[allow(
-                            clippy::float_arithmetic,
-                            reason = "Statistical calculations require floating point arithmetic"
-                        )]
-                        let hit_rate = local_hits_f64 / total_local_f64;
-                        hit_rate
-                    } else {
-                        0.0
-                    },
-                );
-            },
-            |cache_guard| {
-                let (_, cache_hits, cache_misses) = *cache_guard;
-                let total_requests = cache_hits + cache_misses;
+        let cache_hits = cache_state.hits;
+        let cache_misses = cache_state.misses;
+        let total_requests = cache_hits + cache_misses;
 
-                let cache_hit_rate = if total_requests > 0 {
-                    #[allow(
-                        clippy::cast_precision_loss,
-                        reason = "Statistical calculations require f64 precision"
-                    )]
-                    let hits_f64 = cache_hits as f64;
-                    #[allow(
-                        clippy::cast_precision_loss,
-                        reason = "Statistical calculations require f64 precision"
-                    )]
-                    let total_f64 = total_requests as f64;
-                    #[allow(
-                        clippy::float_arithmetic,
-                        reason = "Statistical calculations require floating point arithmetic"
-                    )]
-                    let hit_rate = hits_f64 / total_f64;
-                    hit_rate
-                } else {
-                    0.0
-                };
-
-                return (cache_hits, cache_misses, cache_hit_rate);
-            },
-        );
+        let cache_hit_rate = if total_requests > 0 {
+            #[allow(
+                clippy::cast_precision_loss,
+                reason = "Statistical calculations require f64 precision"
+            )]
+            let hits_f64 = cache_hits as f64;
+            #[allow(
+                clippy::cast_precision_loss,
+                reason = "Statistical calculations require f64 precision"
+            )]
+            let total_f64 = total_requests as f64;
+            #[allow(
+                clippy::float_arithmetic,
+                reason = "Statistical calculations require floating point arithmetic"
+            )]
+            let hit_rate = hits_f64 / total_f64;
+            hit_rate
+        } else {
+            0.0
+        };
 
         #[allow(
             clippy::cast_precision_loss,
@@ -173,10 +144,7 @@ impl CacheMonitorCommand<'_> {
     /// Execute cache monitoring with separated logic
     #[inline]
     fn execute_cache_monitoring(self) -> Result<CacheStats> {
-        static CACHE_DATA: OnceLock<CacheDataType> = OnceLock::new();
-
-        let cache_data =
-            CACHE_DATA.get_or_init(|| return Arc::new(Mutex::new((HashMap::new(), 0, 0))));
+        let mut cache_state = CacheState::default();
 
         let start_time = Instant::now();
         let file = match std::fs::File::open(self.path) {
@@ -189,8 +157,7 @@ impl CacheMonitorCommand<'_> {
         let mut sections_extracted = 0;
         let mut current_section = String::new();
         let mut in_section = false;
-        let mut local_cache_hits = 0;
-        let mut local_cache_misses = 0;
+        let mut current_cache_index: Option<usize> = None;
 
         let common_patterns = [
             "General Information",
@@ -208,10 +175,9 @@ impl CacheMonitorCommand<'_> {
             &mut sections_extracted,
             &mut current_section,
             &mut in_section,
-            &mut local_cache_hits,
-            &mut local_cache_misses,
+            &mut current_cache_index,
             &common_patterns,
-            cache_data,
+            &mut cache_state,
             start_time,
         );
     }
@@ -230,12 +196,12 @@ impl CacheMonitorCommand<'_> {
         sections_extracted: &mut usize,
         current_section: &mut String,
         in_section: &mut bool,
-        local_cache_hits: &mut usize,
-        local_cache_misses: &mut usize,
+        current_cache_index: &mut Option<usize>,
         common_patterns: &[&str; 6],
-        cache_data: &CacheDataType,
+        cache_state: &mut CacheState,
         start_time: Instant,
     ) -> Result<CacheStats> {
+        let mut should_store_section = false;
         loop {
             line_buffer.clear();
             let bytes_read = match reader.read_line(line_buffer) {
@@ -249,41 +215,43 @@ impl CacheMonitorCommand<'_> {
             *bytes_processed += bytes_read as u64;
             let line = line_buffer.trim();
 
-            if common_patterns
-                .iter()
-                .any(|pattern| return line.contains(pattern))
-            {
+            let mut matched_pattern: Option<(usize, &str)> = None;
+            for (index, pattern) in common_patterns.iter().copied().enumerate() {
+                if line.contains(pattern) {
+                    matched_pattern = Some((index, pattern));
+                    break;
+                }
+            }
+
+            if let Some((cache_index, cache_key)) = matched_pattern {
                 line.clone_into(current_section);
                 *in_section = true;
+                *current_cache_index = Some(cache_index);
+                should_store_section = true;
 
-                if let Ok(mut cache_guard) = cache_data.lock() {
-                    let (ref mut cache, ref mut cache_hits, ref mut cache_misses) = *cache_guard;
-                    let cache_key = common_patterns
-                        .iter()
-                        .find(|&&pattern| return line.contains(pattern))
-                        .unwrap_or(&"unknown");
-
-                    if cache.contains_key(*cache_key) {
-                        *cache_hits += 1;
-                        *local_cache_hits += 1;
-                        std::thread::sleep(Duration::from_micros(10));
-                        *sections_extracted += 1;
-                        continue;
-                    }
-                    *cache_misses += 1;
-                    *local_cache_misses += 1;
-                    std::thread::sleep(Duration::from_micros(100));
+                if cache_state.entries.contains_key(cache_key) {
+                    cache_state.hits += 1;
+                    should_store_section = false;
+                    std::thread::sleep(Duration::from_micros(10));
+                    continue;
                 }
+                cache_state.misses += 1;
+                std::thread::sleep(Duration::from_micros(100));
             } else if line == SECTION_DELIMITER && *in_section {
-                if let Ok(mut cache_guard) = cache_data.lock() {
-                    let (ref mut cache, _, _) = *cache_guard;
-                    let cache_key = common_patterns
-                        .iter()
-                        .find(|&&pattern| return current_section.contains(pattern))
-                        .unwrap_or(&"unknown");
-                    cache.insert((*cache_key).to_owned(), current_section.clone());
+                let mut cache_key = "unknown";
+                if let Some(index_ref) = current_cache_index.as_ref() {
+                    if let Some(pattern) = common_patterns.get(*index_ref) {
+                        cache_key = *pattern;
+                    }
+                }
+                if should_store_section {
+                    cache_state
+                        .entries
+                        .insert(cache_key.to_owned(), current_section.clone());
                 }
                 *in_section = false;
+                should_store_section = false;
+                *current_cache_index = None;
                 *sections_extracted += 1;
             } else {
                 // Handle other lines
@@ -298,9 +266,7 @@ impl CacheMonitorCommand<'_> {
             start_time,
             *bytes_processed,
             *sections_extracted,
-            *local_cache_hits,
-            *local_cache_misses,
-            cache_data,
+            cache_state,
         );
     }
 }

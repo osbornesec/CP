@@ -1,76 +1,13 @@
+use crate::checkpoint::regex_utils::{
+    create_regex, extract_float, extract_string, extract_u32, require_capture,
+};
 use crate::checkpoint::types::{
     Certificate, CertificateInformation, HaStatus, LogInformation, MemoryStats, PerformanceMetrics,
     StreamingResult,
 };
 use crate::error::{CpinfoError, Result};
-use regex::Regex;
 use std::fs;
 use std::path::Path;
-
-/// Helper to create regex with context-specific error
-fn create_regex(pattern: &str, context: &str) -> Result<Regex> {
-    match Regex::new(pattern) {
-        Ok(regex) => return Ok(regex),
-        Err(error) => {
-            return Err(CpinfoError::validation_error(format!(
-                "Invalid {context} regex pattern: {error}"
-            )))
-        }
-    }
-}
-
-/// Extract float value using regex pattern
-fn extract_float(text: &str, pattern: &str, context: &str, not_found: &str) -> Result<f64> {
-    let regex = match create_regex(pattern, context) {
-        Ok(regex) => regex,
-        Err(error) => return Err(error),
-    };
-    let captures = match regex.captures(text) {
-        Some(captures) => captures,
-        None => return Err(CpinfoError::validation_error(not_found)),
-    };
-    match captures[1].parse() {
-        Ok(value) => return Ok(value),
-        Err(error) => {
-            return Err(CpinfoError::validation_error(format!(
-                "Invalid {context}: {error}"
-            )))
-        }
-    }
-}
-
-/// Extract u32 value using regex pattern
-fn extract_u32(text: &str, pattern: &str, context: &str, not_found: &str) -> Result<u32> {
-    let regex = match create_regex(pattern, context) {
-        Ok(regex) => regex,
-        Err(error) => return Err(error),
-    };
-    let captures = match regex.captures(text) {
-        Some(captures) => captures,
-        None => return Err(CpinfoError::validation_error(not_found)),
-    };
-    match captures[1].parse() {
-        Ok(value) => return Ok(value),
-        Err(error) => {
-            return Err(CpinfoError::validation_error(format!(
-                "Invalid {context}: {error}"
-            )))
-        }
-    }
-}
-
-/// Extract string value using regex pattern
-fn extract_string(text: &str, pattern: &str, context: &str, not_found: &str) -> Result<String> {
-    let regex = match create_regex(pattern, context) {
-        Ok(regex) => regex,
-        Err(error) => return Err(error),
-    };
-    let captures = match regex.captures(text) {
-        Some(captures) => captures,
-        None => return Err(CpinfoError::validation_error(not_found)),
-    };
-    return Ok(captures[1].trim().to_owned());
-}
 
 /// Extract boolean from regex pattern (true if "true" found)
 #[allow(
@@ -83,8 +20,10 @@ fn extract_boolean(text: &str, pattern: &str, context: &str) -> Result<bool> {
         Ok(regex) => regex,
         Err(error) => return Err(error),
     };
-    let result = regex.captures(text).is_some_and(|cap_ref| {
-        return &cap_ref[1] == "true";
+    let result = regex.captures(text).is_some_and(|captures| {
+        return captures.get(1).is_some_and(|value_match| {
+            return value_match.as_str() == "true";
+        });
     });
     return Ok(result);
 }
@@ -235,18 +174,54 @@ fn parse_certificates(content: &str) -> Result<Vec<Certificate>> {
         Err(error) => return Err(error),
     };
 
-    let mut certificates = Vec::new();
-    for captures in cert_regex.captures_iter(content) {
-        certificates.push(Certificate {
-            name: captures[1].trim().to_owned(),
-            issuer: captures[2].trim().to_owned(),
-            subject: captures[3].trim().to_owned(),
-            status: captures[4].to_owned(),
-            expires: captures[5].trim().to_owned(),
-        });
-    }
+    return cert_regex
+        .captures_iter(content)
+        .map(|captures| {
+            let name_match =
+                match require_capture(&captures, 1, "Invalid certificate capture: missing name") {
+                    Ok(value) => value,
+                    Err(error) => return Err(error),
+                };
+            let issuer_match = match require_capture(
+                &captures,
+                2,
+                "Invalid certificate capture: missing issuer",
+            ) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let subject_match =
+                match require_capture(&captures, 3, "Invalid certificate capture: missing subject")
+                {
+                    Ok(value) => value,
+                    Err(error) => return Err(error),
+                };
+            let status_match = match require_capture(
+                &captures,
+                4,
+                "Invalid certificate capture: missing status",
+            ) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
+            let expires_match = match require_capture(
+                &captures,
+                5,
+                "Invalid certificate capture: missing expiration",
+            ) {
+                Ok(value) => value,
+                Err(error) => return Err(error),
+            };
 
-    return Ok(certificates);
+            return Ok(Certificate {
+                name: name_match.trim().to_owned(),
+                issuer: issuer_match.trim().to_owned(),
+                subject: subject_match.trim().to_owned(),
+                status: status_match.to_owned(),
+                expires: expires_match.trim().to_owned(),
+            });
+        })
+        .collect();
 }
 
 /// Implementation function for certificate info parsing
@@ -311,13 +286,18 @@ fn parse_log_types(content: &str) -> Result<Vec<String>> {
         Ok(regex) => regex,
         Err(error) => return Err(error),
     };
-    let mut log_types = Vec::new();
 
-    for captures in log_type_regex.captures_iter(content) {
-        log_types.push(captures[1].to_owned());
-    }
-
-    return Ok(log_types);
+    return log_type_regex
+        .captures_iter(content)
+        .map(|captures| {
+            let log_type =
+                match require_capture(&captures, 1, "Invalid log type capture: missing value") {
+                    Ok(value) => value,
+                    Err(error) => return Err(error),
+                };
+            return Ok(log_type.to_owned());
+        })
+        .collect();
 }
 
 /// Implementation function for log sections parsing
