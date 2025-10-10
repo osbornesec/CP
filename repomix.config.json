@@ -1,0 +1,52 @@
+{
+    "$schema": "https://repomix.com/schemas/latest/schema.json",
+    "include": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "rustfmt.toml",
+        "src/**/*.rs",
+        "tests/**/*.rs",
+        "benches/**/*.rs",
+        "scripts/**/*.{sh,rs,py}",
+        "docs/**/*.md",
+        "samples/**/*.rs"
+    ],
+    "ignore": {
+        "useGitignore": true,
+        "useDefaultPatterns": true,
+        "customPatterns": [
+            "target/**",
+            ".git/**",
+            ".cargo/**",
+            "lint_reports_latest/**",
+            "**/*.rmeta",
+            "**/*.rcgu.o",
+            "**/*.log",
+            "manual-run.log",
+            "output.txt"
+        ]
+    },
+    "output": {
+        "filePath": "repomix-output.md",
+        "style": "markdown",
+        "parsableStyle": true,
+        "fileSummary": true,
+        "directoryStructure": true,
+        "files": true,
+        "removeComments": false,
+        "showLineNumbers": true,
+        "git": {
+            "sortByChanges": true,
+            "includeDiffs": false,
+            "includeLogs": false
+        },
+        "topFilesLength": 10,
+        "tokenCountTree": true
+    },
+    "tokenCount": {
+        "encoding": "o200k_base"
+    },
+    "security": {
+        "enableSecurityCheck": false
+    }
+}
