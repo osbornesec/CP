@@ -14,20 +14,29 @@ use super::types::SectionDelimiterType;
 pub struct SectionDelimiterDetector;
 
 impl SectionDelimiterDetector {
-    /// Detect section delimiter type from a line
+    /// Determine the section delimiter type represented by a line.
     ///
-    /// Analyzes the provided line to determine if it contains a recognized
-    /// section delimiter pattern. Detection is based on line length and
-    /// character content validation.
+    /// Recognizes three trimmed-line patterns: exactly 23 dashes (`Command23Dash`),
+    /// exactly 24 dashes (`Command24Dash`), and 66 or more dashes (`File66Dash`).
     ///
-    /// # Arguments
+    /// # Parameters
     ///
-    /// * `input_line` - The line content to analyze for delimiter patterns
+    /// * `input_line` - Line to analyze; leading and trailing whitespace are ignored.
     ///
     /// # Returns
     ///
-    /// `Some(SectionDelimiterType)` if a valid delimiter is detected,
-    /// `None` if no recognized pattern is found.
+    /// `Some(SectionDelimiterType::Command23Dash)`, `Some(SectionDelimiterType::Command24Dash)`, or
+    /// `Some(SectionDelimiterType::File66Dash)` when a matching delimiter is found, `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let det = SectionDelimiterDetector::new();
+    /// assert_eq!(det.detect_section_delimiter(&"-".repeat(23)), Some(SectionDelimiterType::Command23Dash));
+    /// assert_eq!(det.detect_section_delimiter(&"-".repeat(24)), Some(SectionDelimiterType::Command24Dash));
+    /// assert_eq!(det.detect_section_delimiter(&"-".repeat(66)), Some(SectionDelimiterType::File66Dash));
+    /// assert_eq!(det.detect_section_delimiter("not a delimiter"), None);
+    /// ```
     #[inline]
     #[must_use]
     pub fn detect_section_delimiter(&self, input_line: &str) -> Option<SectionDelimiterType> {
