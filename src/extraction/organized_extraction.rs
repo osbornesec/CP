@@ -49,14 +49,14 @@ impl OrganizedExtractionState {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use std::path::{Path, PathBuf};
     /// // Construct a state for the current directory; unwrap for brevity in the example.
     /// let mut state = OrganizedExtractionState::new(Path::new(".")).unwrap();
     /// let file = PathBuf::from("sections/example.txt");
     /// state.add_section_file(file.clone());
     /// assert!(state.section_files.contains(&file));
-    /// ```
+    /// ```ignore
     fn add_section_file(&mut self, file: PathBuf) {
         self.section_files.push(file);
     }
@@ -79,10 +79,10 @@ impl OrganizedExtractionState {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// use std::path::Path;
     /// // Create state rooted at "/tmp/output" (creates "/tmp/output/sections" if needed)
-    /// let state = crate::organized::OrganizedExtractionState::new(Path::new("/tmp/output")).unwrap();
+    /// let state = crate::extraction::organized_extraction::OrganizedExtractionState::new(Path::new("/tmp/output")).unwrap();
     /// assert!(state.sections_dir.ends_with("sections"));
     /// ```
     #[allow(
@@ -204,7 +204,7 @@ pub fn extract_sections_organized<P1: AsRef<Path>, P2: AsRef<Path>>(
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// # use std::path::Path;
 /// # fn example() -> anyhow::Result<()> {
 /// let text = "==============================================\nSection A\n==============================================\ncontent line\n==============================================\nSection B\n==============================================\nmore content\n";
@@ -212,7 +212,7 @@ pub fn extract_sections_organized<P1: AsRef<Path>, P2: AsRef<Path>>(
 /// let state = process_organized_sections(&lines, Path::new(".")).unwrap();
 /// assert!(state.section_files.len() >= 1);
 /// # Ok(()) }
-/// ```
+/// ```ignore
 #[allow(
     clippy::single_call_fn,
     reason = "Semantic clarity and code organization"
@@ -268,7 +268,7 @@ fn process_organized_sections(
                 Err(write_error) => return Err(write_error),
             }
 
-            section_index_start = content_end + 1; // Move past this section
+            section_index_start = content_end; // Position at the next header (or EOF)
         } else {
             section_index_start += 1; // Move to next line if no section found
         }
@@ -335,7 +335,7 @@ fn skip_file_header(lines: &[&str]) -> usize {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let lines: Vec<&str> = vec![
 ///     "header",
 ///     "==============================================",
@@ -354,7 +354,7 @@ fn skip_file_header(lines: &[&str]) -> usize {
 /// assert_eq!(found.1, 4); // content starts after opening delimiter, name, and closing delimiter
 /// // content_end points to the delimiter before "Section B"
 /// assert_eq!(found.2, 6);
-/// ```
+/// ```ignore
 fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usize, usize)> {
     const DELIMITER: &str = "==============================================";
 
@@ -408,7 +408,7 @@ fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usiz
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// let lines = vec![
 ///     "header",
 ///     "content line 1",

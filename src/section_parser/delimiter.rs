@@ -31,11 +31,14 @@ impl SectionDelimiterDetector {
     /// # Examples
     ///
     /// ```
-    /// let det = SectionDelimiterDetector::new();
-    /// assert_eq!(det.detect_section_delimiter(&"-".repeat(23)), Some(SectionDelimiterType::Command23Dash));
-    /// assert_eq!(det.detect_section_delimiter(&"-".repeat(24)), Some(SectionDelimiterType::Command24Dash));
-    /// assert_eq!(det.detect_section_delimiter(&"-".repeat(66)), Some(SectionDelimiterType::File66Dash));
-    /// assert_eq!(det.detect_section_delimiter("not a delimiter"), None);
+    /// use cpinfo_parser::section_parser::delimiter::SectionDelimiterDetector;
+    /// use cpinfo_parser::section_parser::types::SectionDelimiterType;
+    ///
+    /// let detector = SectionDelimiterDetector::new();
+    /// assert_eq!(detector.detect_section_delimiter(&"-".repeat(23)), Some(SectionDelimiterType::Command23Dash));
+    /// assert_eq!(detector.detect_section_delimiter(&"-".repeat(24)), Some(SectionDelimiterType::Command24Dash));
+    /// assert_eq!(detector.detect_section_delimiter(&"-".repeat(66)), Some(SectionDelimiterType::File66Dash));
+    /// assert_eq!(detector.detect_section_delimiter("not a delimiter"), None);
     /// ```
     #[inline]
     #[must_use]
@@ -43,20 +46,16 @@ impl SectionDelimiterDetector {
         let trimmed_content = input_line.trim();
 
         let length = trimmed_content.len();
-
-        if length == 23 && Self::is_all_dashes(trimmed_content) {
-            return Some(SectionDelimiterType::Command23Dash);
+        if !Self::is_all_dashes(trimmed_content) {
+            return None;
         }
 
-        if length == 24 && Self::is_all_dashes(trimmed_content) {
-            return Some(SectionDelimiterType::Command24Dash);
+        match length {
+            23 => Some(SectionDelimiterType::Command23Dash),
+            24 => Some(SectionDelimiterType::Command24Dash),
+            n if n >= 66 => Some(SectionDelimiterType::File66Dash),
+            _ => None,
         }
-
-        if length >= 66 && Self::is_all_dashes(trimmed_content) {
-            return Some(SectionDelimiterType::File66Dash);
-        }
-
-        return None;
     }
 
     /// Helper: Check if string contains only dash characters

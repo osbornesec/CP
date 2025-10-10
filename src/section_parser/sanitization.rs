@@ -123,6 +123,8 @@ pub fn command_output_filename(command_name: &str) -> String {
 /// # Examples
 ///
 /// ```
+/// use cpinfo_parser::section_parser::sanitization::file_output_filename;
+///
 /// assert_eq!(file_output_filename("dir/sub/file"), "dir_sub_file.txt");
 /// assert_eq!(file_output_filename("notes.txt"), "notes.txt");
 /// ```
@@ -169,6 +171,8 @@ pub fn sanitize_command_name(command: &str) -> String {
 /// # Examples
 ///
 /// ```
+/// use cpinfo_parser::section_parser::sanitization::sanitize_file_path;
+///
 /// assert_eq!(sanitize_file_path("src/main.rs"), "src_main.rs");
 /// assert_eq!(sanitize_file_path("dir/sub-dir/file.name"), "dir_sub-dir_file.name");
 /// assert_eq!(sanitize_file_path("weird|name<>.txt"), "weird_name__.txt");

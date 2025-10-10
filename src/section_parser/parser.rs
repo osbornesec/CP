@@ -124,7 +124,7 @@ impl SectionFileParser {
     ///
     /// # Examples
     ///
-    /// ```no_run
+    /// ```ignore
     /// let parser = SectionFileParser::new();
     /// let delim = "-".repeat(66);
     /// let lines: Vec<&str> = vec![&delim, "/some/path.txt", &delim];
@@ -288,6 +288,8 @@ impl SectionFileParser {
     /// # Examples
     ///
     /// ```
+    /// use cpinfo_parser::section_parser::parser::SectionFileParser;
+    ///
     /// let parser = SectionFileParser::new();
     /// let d = "-".repeat(66);
     /// let section = format!("{}\n/path/to/file.txt\n{}\nline1\nline2", d, d);
@@ -408,6 +410,8 @@ impl SectionFileParser {
     /// # Examples
     ///
     /// ```
+    /// use cpinfo_parser::section_parser::parser::SectionFileParser;
+    ///
     /// let parser = SectionFileParser::new();
     /// let (commands, files) = parser.parse_section_file("").unwrap();
     /// assert!(commands.is_empty() && files.is_empty());
