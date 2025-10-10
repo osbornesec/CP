@@ -266,7 +266,7 @@ impl AuthenticationManager {
             permissions,
             session_id: session_id.clone(),
             source_ip: source_ip.map(String::from),
-            user_id: username.to_owned(),
+            user_id: String::from(username),
         };
 
         self.active_sessions.insert(session_id, session.clone());
