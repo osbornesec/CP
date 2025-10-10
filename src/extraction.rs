@@ -8,7 +8,6 @@ pub mod basic_extraction;
 pub mod organized_extraction;
 pub mod types;
 pub mod utils;
-pub mod vsx;
 pub mod writer;
 
 pub use basic::SectionExtractor;
