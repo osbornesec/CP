@@ -31,139 +31,131 @@ pub struct SectionFileParser {
 }
 
 impl SectionFileParser {
-    /// Extract command section content
     #[inline]
     fn extract_command_section_content(
         &self,
         lines: &[&str],
         start_index: usize,
     ) -> Option<String> {
-        if start_index + 2_usize >= lines.len() {
+        if !self.is_command_header(lines, start_index) {
             return None;
         }
 
-        let opening_line = match lines.get(start_index) {
-            Some(line_content) => line_content,
-            None => return None,
-        };
+        let search_start = start_index + 3_usize;
+        let content_end = self.find_next_section_start(lines, search_start);
 
-        let opening_delimiter = match self.detector.detect_section_delimiter(opening_line) {
-            Some(delimiter_type) => delimiter_type,
-            None => return None,
-        };
-
-        let closing_line = match lines.get(start_index + 2_usize) {
-            Some(line_content) => line_content,
-            None => return None,
-        };
-
-        if let Some(closing_delimiter) = self.detector.detect_section_delimiter(closing_line) {
-            if opening_delimiter == closing_delimiter {
-                let content_start = start_index + 3_usize;
-                let content_end = self.find_next_section_start(lines, content_start);
-
-                let first_line = match lines.get(start_index) {
-                    Some(line_content) => line_content,
-                    None => return None,
-                };
-                let second_line = match lines.get(start_index + 1_usize) {
-                    Some(line_content) => line_content,
-                    None => return None,
-                };
-                let third_line = match lines.get(start_index + 2_usize) {
-                    Some(line_content) => line_content,
-                    None => return None,
-                };
-
-                let mut section_lines = vec![*first_line, *second_line, *third_line];
-
-                for content_line in lines
-                    .iter()
-                    .take(content_end.min(lines.len()))
-                    .skip(content_start)
-                {
-                    section_lines.push(*content_line);
-                }
-
-                return Some(section_lines.join("\n"));
-            }
-        }
-
-        return None;
+        let slice_end = content_end.min(lines.len());
+        return Some(lines[start_index..slice_end].join("\n"));
     }
 
     /// Extract file section content
     #[inline]
     fn extract_file_section_content(&self, lines: &[&str], start_index: usize) -> Option<String> {
-        if start_index + 2_usize >= lines.len() {
+        if !self.is_file_header(lines, start_index) {
             return None;
         }
 
-        let opening_line = match lines.get(start_index) {
-            Some(line_content) => line_content,
-            None => return None,
-        };
+        let search_start = start_index + 3_usize;
+        let content_end = self.find_next_section_start(lines, search_start);
 
-        if self.detector.detect_section_delimiter(opening_line)
-            != Some(SectionDelimiterType::File66Dash)
-        {
-            return None;
-        }
-
-        let closing_line = match lines.get(start_index + 2_usize) {
-            Some(line_content) => line_content,
-            None => return None,
-        };
-
-        if self.detector.detect_section_delimiter(closing_line)
-            == Some(SectionDelimiterType::File66Dash)
-        {
-            let content_start = start_index + 3_usize;
-            let content_end = self.find_next_section_start(lines, content_start);
-
-            let first_line = match lines.get(start_index) {
-                Some(line_content) => line_content,
-                None => return None,
-            };
-            let second_line = match lines.get(start_index + 1_usize) {
-                Some(line_content) => line_content,
-                None => return None,
-            };
-            let third_line = match lines.get(start_index + 2_usize) {
-                Some(line_content) => line_content,
-                None => return None,
-            };
-
-            let mut section_lines = vec![*first_line, *second_line, *third_line];
-
-            for content_line in lines
-                .iter()
-                .take(content_end.min(lines.len()))
-                .skip(content_start)
-            {
-                section_lines.push(*content_line);
-            }
-
-            return Some(section_lines.join("\n"));
-        }
-
-        return None;
+        let slice_end = content_end.min(lines.len());
+        return Some(lines[start_index..slice_end].join("\n"));
     }
-
-    /// Find the next section start index
     #[must_use]
     #[inline]
     fn find_next_section_start(&self, lines: &[&str], start_index: usize) -> usize {
-        for (line_index, line_content) in lines.iter().enumerate().skip(start_index) {
-            if self
-                .detector
-                .detect_section_delimiter(line_content)
-                .is_some()
-            {
+        for line_index in start_index..lines.len() {
+            if self.is_command_header(lines, line_index) || self.is_file_header(lines, line_index) {
                 return line_index;
             }
         }
         return lines.len();
+    }
+
+    /// Determines whether the line at `index` begins a well-formed command section header.
+    ///
+    /// A well-formed command header consists of:
+    /// - an opening command delimiter (either 23- or 24-dash variant) on the line at `index`,
+    /// - a non-empty command name on the following line,
+    /// - a closing delimiter on the third line that matches the opening delimiter.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use cpinfo_parser::section_parser::parser::SectionFileParser;
+    ///
+    /// let parser = SectionFileParser::new();
+    /// let lines = [
+    ///     "-----------------------", // opening command delimiter (23 or 24 dashes)
+    ///     "my-command",
+    ///     "-----------------------", // matching closing delimiter
+    /// ];
+    /// assert!(parser.is_command_header(&lines, 0));
+    /// ```
+    fn is_command_header(&self, lines: &[&str], index: usize) -> bool {
+        if index + 2_usize >= lines.len() {
+            return false;
+        }
+
+        let opening_delimiter = match self.detector.detect_section_delimiter(lines[index]) {
+            Some(
+                delimiter @ (SectionDelimiterType::Command23Dash
+                | SectionDelimiterType::Command24Dash),
+            ) => delimiter,
+            _ => return false,
+        };
+
+        let command_name = lines[index + 1_usize].trim();
+        if command_name.is_empty() {
+            return false;
+        }
+
+        match self
+            .detector
+            .detect_section_delimiter(lines[index + 2_usize])
+        {
+            Some(delimiter) if delimiter == opening_delimiter => true,
+            _ => false,
+        }
+    }
+
+    /// Determines whether a file section header begins at `index` in `lines`.
+    ///
+    /// The check requires: an opening file delimiter of at least 66 dashes on the first line,
+    /// a non-empty path on the second line, and a matching file delimiter on the third line.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use cpinfo_parser::section_parser::parser::SectionFileParser;
+    ///
+    /// let parser = SectionFileParser::new();
+    /// let delim = "-".repeat(66);
+    /// let lines: Vec<&str> = vec![&delim, "/some/path.txt", &delim];
+    /// assert!(parser.is_file_header(&lines, 0));
+    /// ```
+    #[inline]
+    fn is_file_header(&self, lines: &[&str], index: usize) -> bool {
+        if index + 2_usize >= lines.len() {
+            return false;
+        }
+
+        if self.detector.detect_section_delimiter(lines[index])
+            != Some(SectionDelimiterType::File66Dash)
+        {
+            return false;
+        }
+
+        let path = lines[index + 1_usize].trim();
+        if path.is_empty() {
+            return false;
+        }
+
+        matches!(
+            self.detector
+                .detect_section_delimiter(lines[index + 2_usize]),
+            Some(SectionDelimiterType::File66Dash)
+        )
     }
 
     /// Create a new section file parser
@@ -285,11 +277,30 @@ impl SectionFileParser {
         });
     }
 
-    /// Parse file section content
+    /// Parse a file section string into a `FileSection`.
+    ///
+    /// Validates that the section begins with a file delimiter (>= 66 dashes), contains a non-empty
+    /// file path on the second line, and has a matching closing delimiter on the third line.
+    /// On success returns a `FileSection` with the parsed path and the remaining lines joined as the
+    /// file content.
     ///
     /// # Errors
-    /// Returns an error if file section format is invalid
-    #[inline]
+    ///
+    /// Returns a `CpinfoError::ParseError` when the section is malformed (for example: too few lines,
+    /// missing or empty path, invalid opening/closing delimiter, or mismatched delimiters).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cpinfo_parser::section_parser::parser::SectionFileParser;
+    ///
+    /// let parser = SectionFileParser::new();
+    /// let d = "-".repeat(66);
+    /// let section = format!("{}\n/path/to/file.txt\n{}\nline1\nline2", d, d);
+    /// let file = parser.parse_file_section(&section).unwrap();
+    /// assert_eq!(file.path, "/path/to/file.txt");
+    /// assert_eq!(file.content, "line1\nline2");
+    /// ```
     pub fn parse_file_section(&self, section_content: &str) -> Result<FileSection> {
         let lines: Vec<&str> = section_content.lines().collect();
 
@@ -325,7 +336,7 @@ impl SectionFileParser {
 
         if opening_delimiter != SectionDelimiterType::File66Dash {
             return Err(CpinfoError::ParseError {
-                message: "Expected file delimiter (66 dashes)".to_owned(),
+                message: "Expected file delimiter (>= 66 dashes)".to_owned(),
                 line: 0_usize,
             });
         }
@@ -391,10 +402,24 @@ impl SectionFileParser {
         });
     }
 
-    /// Parse entire section file containing multiple commands and files
+    /// Parse an entire section file into command and file sections.
+    ///
+    /// Processes the given file content, extracting zero or more command sections and file
+    /// sections and returning them as two separate vectors.
     ///
     /// # Errors
-    /// Returns an error if section parsing fails
+    ///
+    /// Returns an error if any detected section fails to parse.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cpinfo_parser::section_parser::parser::SectionFileParser;
+    ///
+    /// let parser = SectionFileParser::new();
+    /// let (commands, files) = parser.parse_section_file("").unwrap();
+    /// assert!(commands.is_empty() && files.is_empty());
+    /// ```
     #[inline]
     pub fn parse_section_file(
         &self,
@@ -406,43 +431,29 @@ impl SectionFileParser {
 
         let mut line_index = 0_usize;
         while line_index < lines.len() {
-            let current_line = match lines.get(line_index) {
-                Some(line_content) => line_content,
-                None => break,
-            };
-            if let Some(delimiter_type) = self.detector.detect_section_delimiter(current_line) {
-                match delimiter_type {
-                    SectionDelimiterType::Command24Dash | SectionDelimiterType::Command23Dash => {
-                        let command_section_result =
-                            self.extract_command_section_content(&lines, line_index);
-                        if let Some(command_section_content) = command_section_result {
-                            if let Ok(cmd_section) =
-                                self.parse_command_section(&command_section_content)
-                            {
-                                command_sections.push(cmd_section);
-                            }
-                            line_index = self.find_next_section_start(&lines, line_index + 1_usize);
-                        } else {
-                            line_index += 1_usize;
-                        }
-                    }
-                    SectionDelimiterType::File66Dash => {
-                        let file_section_result =
-                            self.extract_file_section_content(&lines, line_index);
-                        if let Some(file_section_content) = file_section_result {
-                            if let Ok(file_section) = self.parse_file_section(&file_section_content)
-                            {
-                                file_sections.push(file_section);
-                            }
-                            line_index = self.find_next_section_start(&lines, line_index + 1_usize);
-                        } else {
-                            line_index += 1_usize;
-                        }
-                    }
+            if self.is_command_header(&lines, line_index) {
+                if let Some(command_section_content) =
+                    self.extract_command_section_content(&lines, line_index)
+                {
+                    let cmd_section = self.parse_command_section(&command_section_content)?;
+                    command_sections.push(cmd_section);
                 }
-            } else {
-                line_index += 1_usize;
+                line_index = self.find_next_section_start(&lines, line_index + 3_usize);
+                continue;
             }
+
+            if self.is_file_header(&lines, line_index) {
+                if let Some(file_section_content) =
+                    self.extract_file_section_content(&lines, line_index)
+                {
+                    let file_section = self.parse_file_section(&file_section_content)?;
+                    file_sections.push(file_section);
+                }
+                line_index = self.find_next_section_start(&lines, line_index + 3_usize);
+                continue;
+            }
+
+            line_index += 1_usize;
         }
 
         return Ok((command_sections, file_sections));
@@ -453,7 +464,10 @@ impl SectionFileParser {
     /// # Errors
     /// Returns an error if file reading or parsing fails
     #[inline]
-    pub async fn process_section_file(&self, file_path: &Path) -> Result<SectionFileProcessResult> {
+    pub async fn process_section_file_async(
+        &self,
+        file_path: &Path,
+    ) -> Result<SectionFileProcessResult> {
         let content = match fs::read_to_string(file_path).await.map_err(CpinfoError::Io) {
             Ok(file_content) => file_content,
             Err(error) => return Err(error),
@@ -497,6 +511,11 @@ impl SectionFileParser {
             file_sections,
             stats,
         });
+    }
+
+    #[deprecated(since = "0.2.0", note = "Use `process_section_file_async` instead for clearer async semantics")]
+    pub async fn process_section_file(&self, file_path: &Path) -> Result<SectionFileProcessResult> {
+        self.process_section_file_async(file_path).await
     }
 }
 

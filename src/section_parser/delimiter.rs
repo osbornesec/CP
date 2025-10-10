@@ -4,7 +4,7 @@ use super::types::SectionDelimiterType;
 ///
 /// This detector analyzes line content to identify section delimiters
 /// used in section files. It supports detection of command sections
-/// (23-dash and 24-dash patterns) and file sections (66-dash pattern).
+/// (23-dash and 24-dash patterns) and file sections (66+ dash pattern).
 ///
 /// # Performance
 ///
@@ -14,38 +14,62 @@ use super::types::SectionDelimiterType;
 pub struct SectionDelimiterDetector;
 
 impl SectionDelimiterDetector {
-    /// Detect section delimiter type from a line
+    /// Determine the section delimiter type represented by a line.
     ///
-    /// Analyzes the provided line to determine if it contains a recognized
-    /// section delimiter pattern. Detection is based on line length and
-    /// character content validation.
+    /// Recognizes three trimmed-line patterns: exactly 23 dashes (`Command23Dash`),
+    /// exactly 24 dashes (`Command24Dash`), and 66 or more dashes (`File66Dash`).
     ///
-    /// # Arguments
+    /// # Parameters
     ///
-    /// * `input_line` - The line content to analyze for delimiter patterns
+    /// * `input_line` - Line to analyze; leading and trailing whitespace are ignored.
     ///
     /// # Returns
     ///
-    /// `Some(SectionDelimiterType)` if a valid delimiter is detected,
-    /// `None` if no recognized pattern is found.
+    /// `Some(SectionDelimiterType::Command23Dash)`, `Some(SectionDelimiterType::Command24Dash)`, or
+    /// `Some(SectionDelimiterType::File66Dash)` when a matching delimiter is found, `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cpinfo_parser::section_parser::delimiter::SectionDelimiterDetector;
+    /// use cpinfo_parser::section_parser::types::SectionDelimiterType;
+    ///
+    /// let detector = SectionDelimiterDetector::new();
+    /// assert_eq!(detector.detect_section_delimiter(&"-".repeat(23)), Some(SectionDelimiterType::Command23Dash));
+    /// assert_eq!(detector.detect_section_delimiter(&"-".repeat(24)), Some(SectionDelimiterType::Command24Dash));
+    /// assert_eq!(detector.detect_section_delimiter(&"-".repeat(66)), Some(SectionDelimiterType::File66Dash));
+    /// assert_eq!(detector.detect_section_delimiter("not a delimiter"), None);
+    /// ```
     #[inline]
     #[must_use]
     pub fn detect_section_delimiter(&self, input_line: &str) -> Option<SectionDelimiterType> {
         let trimmed_content = input_line.trim();
 
-        match trimmed_content.len() {
-            23 if Self::is_all_dashes(trimmed_content) => {
-                return Some(SectionDelimiterType::Command23Dash);
+        let length = trimmed_content.len();
+
+        match length {
+            23 => {
+                if Self::is_all_dashes(trimmed_content) {
+                    Some(SectionDelimiterType::Command23Dash)
+                } else {
+                    None
+                }
             }
-            24 if Self::is_all_dashes(trimmed_content) => {
-                return Some(SectionDelimiterType::Command24Dash);
+            24 => {
+                if Self::is_all_dashes(trimmed_content) {
+                    Some(SectionDelimiterType::Command24Dash)
+                } else {
+                    None
+                }
             }
-            66 if Self::is_all_dashes(trimmed_content) => {
-                return Some(SectionDelimiterType::File66Dash);
+            n if n >= 66 => {
+                if Self::is_all_dashes(trimmed_content) {
+                    Some(SectionDelimiterType::File66Dash)
+                } else {
+                    None
+                }
             }
-            _ => {
-                return None;
-            }
+            _ => None,
         }
     }
 

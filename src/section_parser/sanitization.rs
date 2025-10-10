@@ -117,20 +117,25 @@ pub fn command_output_filename(command_name: &str) -> String {
 
 /// Generates a sanitized filename from a file path.
 ///
-/// Sanitizes a file path to create a safe filename suitable for
-/// file system storage by removing or replacing unsafe characters.
+/// The input path is converted to a filesystem-safe name; if the sanitized result does not already end with
+/// `.txt`, the suffix `.txt` is appended.
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `file_path` - The raw file path to sanitize
+/// ```
+/// use cpinfo_parser::section_parser::sanitization::file_output_filename;
 ///
-/// # Returns
-///
-/// A sanitized filename string suitable for file system use.
+/// assert_eq!(file_output_filename("dir/sub/file"), "dir_sub_file.txt");
+/// assert_eq!(file_output_filename("notes.txt"), "notes.txt");
+/// ```
 #[must_use]
 #[inline]
 pub fn file_output_filename(file_path: &str) -> String {
-    return sanitize_file_path(file_path);
+    let sanitized = sanitize_file_path(file_path);
+    if sanitized.len() >= 4 && sanitized[sanitized.len() - 4..].eq_ignore_ascii_case(".txt") {
+        return sanitized;
+    }
+    return format!("{sanitized}.txt");
 }
 
 /// Sanitizes a command name for safe file system use.
@@ -157,28 +162,30 @@ pub fn sanitize_command_name(command: &str) -> String {
         .collect::<String>();
 }
 
-/// Sanitizes a file path for safe file system use.
+/// Produce a filesystem-safe path by replacing or normalizing unsafe characters.
 ///
-/// Replaces any characters that are not ASCII alphanumeric, forward slashes,
-/// hyphens, or underscores with underscores to create a filename-safe string.
+/// This function keeps ASCII letters, digits, hyphens (`-`), underscores (`_`), and dots (`.`) as-is;
+/// it converts forward and backward slashes (`/`, `\`) to underscores (`_`); and it replaces any
+/// other character with an underscore.
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `path` - The raw file path to sanitize
+/// ```
+/// use cpinfo_parser::section_parser::sanitization::sanitize_file_path;
 ///
-/// # Returns
-///
-/// A sanitized file path containing only safe characters.
+/// assert_eq!(sanitize_file_path("src/main.rs"), "src_main.rs");
+/// assert_eq!(sanitize_file_path("dir/sub-dir/file.name"), "dir_sub-dir_file.name");
+/// assert_eq!(sanitize_file_path("weird|name<>.txt"), "weird_name__.txt");
+/// ```
 #[must_use]
 #[inline]
 pub fn sanitize_file_path(path: &str) -> String {
-    return path.replace(
-        |character: char| {
-            return !character.is_ascii_alphanumeric()
-                && character != '/'
-                && character != '-'
-                && character != '_';
-        },
-        "_",
-    );
+    return path
+        .bytes()
+        .map(|byte| match byte {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' => byte as char,
+            b'/' | b'\\' => '_',
+            _ => '_',
+        })
+        .collect();
 }
