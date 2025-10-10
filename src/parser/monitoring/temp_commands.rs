@@ -339,13 +339,13 @@ impl<'input> MonitorCommand<ResourceStats> for ResourceMonitorCommand<'input> {
 
         let peak_memory_mb = memory_samples
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+            .max_by(|a, b| a.total_cmp(b))
             .copied()
             .unwrap_or(0.0);
 
         let peak_cpu_percent = cpu_samples
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+            .max_by(|a, b| a.total_cmp(b))
             .copied()
             .unwrap_or(0.0);
 
