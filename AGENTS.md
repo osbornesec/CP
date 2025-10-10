@@ -1,25 +1,62 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Project Structure & Module Organization
-The Rust crate lives in `src/`, split by capability: `extraction/` for section writers and filters, `parser/` for monitoring and binary helpers, `section/` for metadata validation, and `security/` for logging. Shared utilities stay in `utils/`. High-level orchestration sits under `workflow/`. Integration tests reside in `tests/`, benchmarks in `benches/`, reusable samples and fixtures in `samples/`, and contributor tooling (lint, ordering checks) in `scripts/`. Reference material and architecture notes are stored in `docs/`.
+## Setup
+- Install the stable Rust toolchain: `rustup toolchain install stable` (crate targets edition 2021; see `Cargo.toml`).
+- Ensure components: `rustup component add rustfmt clippy`; optional helpers: `cargo install rust-script` (for `scripts/quick_profiling.rs`), `jq` + `python3` (for lint scripts).
+- Dependencies are locked in `Cargo.lock`; prefetch when offline: `cargo fetch`.
+- Sanitized cpinfo fixtures live under `samples/`; keep them read-only and avoid uploading real customer data.
 
-## Build, Test, and Development Commands
-- `cargo fmt` — format the codebase per `rustfmt.toml`.
-- `cargo check` — fast compile-time validation while iterating.
-- `cargo test` — run unit and integration tests in `src/` and `tests/`.
-- `cargo test --doc` — ensure doctests (e.g., `write_section_with_progress`) compile.
-- `cargo clippy --all-targets --all-features` — lint with repository rules; treat warnings as blockers.
-- Before committing, run `cargo fmt`, `cargo clippy --all-targets --all-features`, and `cargo test` to ensure code quality alongside the CI checks.
-- `scripts/lint_by_file.sh <path>` — narrow lint runs when triaging CI failures.
+## Run
+- CLI entrypoint: `cargo run --bin cpinfo-parser -- --help` to inspect flags (async tokio runtime).
+- Typical end-to-end parse: `cargo run --release -- samples/fw-02_vs0.tgz.info tmp/output` (creates `sections/`, `commands/`, `files/` subdirs).
+- Section extraction only: `cargo run -- --extract-only samples/FW1cpinfo.info tmp/sections`.
+- Parse pre-extracted section: `cargo run -- --section-file tmp/sections/CP_Status.txt`.
+- Feature gates: defaults enable `security` + `progress`; override with `cargo run --no-default-features --features security` when deterministic logs are needed.
+- Quick perf profiling (optional): `rust-script scripts/quick_profiling.rs` uses `samples/fw-02_vs0.tgz.info`.
 
-## Rust 2024 Style Guide & Naming Conventions
-Target the Rust 2024 edition (`cargo +nightly fmt --edition 2024` when previewing). Stick to four-space indentation, trailing commas on multi-line literals, and explicit `let else` + `if let` patterns where the new edition encourages them. Name modules with `snake_case`, types with `PascalCase`, and async helpers with the `_async` suffix. Prefer `dyn Trait` bounds, explicit lifetimes, and `#[non_exhaustive]` where future extension is planned; expose builder or `new` constructors (e.g., `SectionWriteParams::new`). Keep functions focused, add concise comments only for nuanced control flow like progress heuristics. Always rely on `cargo fmt` and `cargo clippy` for formatting and linting—never hand-tune whitespace.
+## Test
+- Full suite: `cargo test` (unit + integration under `tests/unit/`); see [RUN_TESTS.md](RUN_TESTS.md) for targeted invocations.
+- Doctests: `cargo test --doc`.
+- Show all output: `cargo test -- --nocapture`; force serial runs when debugging concurrency: `cargo test -- --test-threads=1`.
+- Property-based and async tests use large fixtures—prefer subset runs (e.g., `cargo test extraction_writer_tests`) during iteration.
+- Optional coverage (requires `cargo tarpaulin`): `cargo tarpaulin --out Html`.
 
-## Testing Guidelines
-Unit tests live beside modules; integration scenarios go to `tests/`. Mirror function names in the corresponding test modules (e.g., `mod write_section_with_progress_tests`). Doctests must compile without extra imports—export constructors or helper functions as needed. Add targeted cases when touching parsing, writer behavior, or validation rules, and prefer property-style coverage for boundary conditions.
+## Lint, Typecheck & Format
+- Formatting: `cargo fmt` (or `cargo fmt --check` in CI scenarios).
+- Fast compilation gate: `cargo check --all-targets --all-features`.
+- Strict linting (pedantic + restriction lints, `print!`/`unwrap!` denied): `cargo clippy --all-targets --all-features`.
+- Ordering audit helper: `./check_ordering.sh` (needs `jq`; reports `arbitrary_source_item_ordering` findings).
+- Deep lint triage: `./lint_by_file.sh` regenerates `lint_report/` with categorized Clippy output (removes existing `lint_report/` before rebuilding).
+- API docs sanity (respects no-std restrictions): `cargo doc --no-deps --all-features`.
 
-## Commit & Pull Request Guidelines
-Adopt Conventional Commit prefixes seen in history (`feat:`, `fix:`, `chore:`) and keep subject lines under 72 characters. Reference issues using `Refs #123` when applicable. Pull requests should include: summary of changes, validation steps (commands run), screenshots or sample outputs when behavior changes, and notes on backward compatibility. Ensure CI passes `cargo fmt`, `cargo clippy`, and the full test suite before requesting review.
+## CI Parity
+- No workflow files are committed; treat `cargo fmt`, `cargo clippy --all-targets --all-features`, `cargo test`, and `cargo doc --no-deps --all-features` as required gates before PRs.
+- Automation scripts in `lint_reports_latest/` and `TEST_*.md` snapshots reflect the expected state after running the gates above.
 
-## Security & Configuration Tips
-Never commit real customer data; use sanitized fixtures from `samples/`. Scripts may rely on environment variables—document temporary overrides in PR descriptions. Review new dependencies for license compatibility and add them to the audit checklist maintained in `docs/`.
+## Repo Map
+- `src/` — core crate modules (`extraction/`, `parser/`, `section/`, `security/`, `workflow/`, etc.) exposed via `lib.rs`; binary entry in `main.rs`.
+- `tests/unit/` — integration-style tests grouped by capability (extraction, parser, security, workflow, sanitization, progress).
+- `samples/` — sanitized cpinfo fixtures for manual runs and regression tests.
+- `scripts/` — developer tooling (Rust-script profiler).
+- `benches/`, `examples/` — placeholders reserved for Criterion benchmarks and runnable samples.
+- `docs/` — generated reports (e.g., `implicit_return_configuration_conflict_report.md`).
+- Root helpers: `RUN_TESTS.md`, `TEST_*SUMMARY.md`, `check_ordering.sh`, `lint_by_file.sh`.
+
+## Contributing
+- Use Conventional Commits (`feat:`, `fix:`, `chore:`); keep subject ≤72 chars and reference issues with `Refs #123` when relevant.
+- Always run `cargo fmt`, `cargo clippy --all-targets --all-features`, `cargo test`, and (when docs change) `cargo doc --no-deps --all-features` before pushing.
+- Update or link to existing docs (e.g., `RUN_TESTS.md`) instead of duplicating instructions; keep new helpers in `docs/` or `scripts/` per project layout.
+- Large fixture additions must be sanitized and stored in `samples/` with paths documented in PR descriptions.
+
+## Env & Secrets
+- No mandatory `.env` file
+
+## Gotchas
+- Clippy restrictions (`print!`, `dbg!`, `unwrap!`, `todo!`, `exit`, arithmetic lints, etc.) will turn into errors—mirror the existing patterns (`anyhow`, `Result`, explicit error handling).
+- Progress reporter is rate-limited; tests that inspect logs expect deterministic order—avoid background threads writing to stdout/stderr.
+- `lint_by_file.sh` deletes and recreates `lint_report/`; ensure nothing important is stored there before running.
+- Large fixtures live outside Git LFS; avoid copying them outside the repo to keep diffs manageable.
+- Tokio runtime powers the CLI; long-running operations should remain async-safe.
+
+## Monorepo Notes
+- Single-crate repository (`cpinfo-parser`); no Cargo workspace or Node/Python packages. Commands above operate at repo root.
