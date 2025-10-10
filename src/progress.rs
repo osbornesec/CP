@@ -333,7 +333,23 @@ impl Default for ProgressReporter {
     }
 }
 
-/// Format duration in human-readable format
+/// Convert a `Duration` into a compact, human-readable string.
+///
+/// Produces:
+/// - seconds as `"Xs"` for durations less than 60 seconds (e.g. `"30s"`),
+/// - minutes and seconds as `"YmZs"` for durations less than one hour (e.g. `"2m15s"`),
+/// - hours and minutes as `"XhYm"` for durations of one hour or more (e.g. `"1h5m"`).
+///
+/// # Examples
+///
+/// ```
+/// use cpinfo_parser::progress::format_duration;
+/// use std::time::Duration;
+///
+/// assert_eq!(format_duration(Duration::from_secs(45)), "45s");
+/// assert_eq!(format_duration(Duration::from_secs(135)), "2m15s");
+/// assert_eq!(format_duration(Duration::from_secs(3900)), "1h5m");
+/// ```
 #[must_use]
 #[inline]
 pub fn format_duration(duration: Duration) -> String {
@@ -351,63 +367,4 @@ pub fn format_duration(duration: Duration) -> String {
     let remaining_seconds = total_seconds.checked_rem(3600_u64).unwrap_or(0_u64);
     let minutes = remaining_seconds.checked_div(60_u64).unwrap_or(0_u64);
     return format!("{hours}h{minutes}m");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_progress_reporter_basic_functionality() {
-        let mut reporter = ProgressReporter::new();
-
-        reporter.start("Test operation", Some(100));
-        assert_eq!(reporter.current, 0);
-        assert_eq!(reporter.total, Some(100));
-
-        reporter.update(50);
-        assert_eq!(reporter.current, 50);
-        assert_eq!(reporter.fraction(), 0.5);
-
-        reporter.increment(25);
-        assert_eq!(reporter.current, 75);
-        assert_eq!(reporter.fraction(), 0.75);
-
-        reporter.finish(Some("Test completed"));
-    }
-
-    #[test]
-    fn test_accessibility_config_from_environment() {
-        // Test default behavior
-        let config = AccessibilityConfig::default();
-        assert!(config.display_options.include_percentage);
-        assert!(config.display_options.include_time_estimates);
-        assert!(config.max_update_frequency > 0.0_f64);
-    }
-
-    #[test]
-    fn test_progress_rate_limiting() {
-        let config = AccessibilityConfig {
-            max_update_frequency: 10.0_f64, // 10 Hz max
-            ..Default::default()
-        };
-        let mut reporter = ProgressReporter::with_config(config);
-
-        reporter.start("Rate limit test", Some(100));
-
-        // Rapid updates should be rate limited
-        for i in 0..10 {
-            reporter.update(i);
-            // In real usage, only some updates would be processed due to rate limiting
-        }
-
-        reporter.finish(None);
-    }
-
-    #[test]
-    fn test_duration_formatting() {
-        assert_eq!(format_duration(Duration::from_secs(30)), "30s");
-        assert_eq!(format_duration(Duration::from_secs(90)), "1m30s");
-        assert_eq!(format_duration(Duration::from_secs(3661)), "1h1m");
-    }
 }

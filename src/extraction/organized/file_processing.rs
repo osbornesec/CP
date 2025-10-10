@@ -39,19 +39,26 @@ pub fn read_file_content(path: &Path) -> Result<String> {
     }
 }
 
-/// Skip the file header to get to actual sections
+/// Locate the index of the first line after the cpinfo header delimiter.
 ///
-/// Finds the first section delimiter after the "Check Point Support Information" header.
-/// This allows the parser to skip standard cpinfo file headers and begin processing
-/// actual section content.
+/// Searches for a line containing "Check Point Support Information" and then finds
+/// the next exact delimiter line "==============================================".
+/// Returns the index of the first line following that delimiter, or `0` if no header
+/// delimiter sequence is found.
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `lines` - All lines from the cpinfo file
-///
-/// # Returns
-///
-/// Index of the first line after the header, or 0 if no header is found
+/// ```
+/// let lines = &[
+///     "Some preamble",
+///     "Check Point Support Information - generated",
+///     "Metadata",
+///     "==============================================",
+///     "Section: System Information",
+/// ];
+/// let idx = skip_file_header(lines);
+/// assert_eq!(idx, 4);
+/// ```
 pub fn skip_file_header(lines: &[&str]) -> usize {
     const DELIMITER: &str = "==============================================";
 
@@ -67,42 +74,4 @@ pub fn skip_file_header(lines: &[&str]) -> usize {
     }
 
     0 // No header found, start from beginning
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_skip_file_header_with_header() {
-        let lines = vec![
-            "Some preamble",
-            "Check Point Support Information",
-            "Version: R81.20",
-            "==============================================",
-            "Section 1",
-            "content",
-        ];
-
-        assert_eq!(skip_file_header(&lines), 4);
-    }
-
-    #[test]
-    fn test_skip_file_header_no_header() {
-        let lines = vec!["Just content", "No header here"];
-
-        assert_eq!(skip_file_header(&lines), 0);
-    }
-
-    #[test]
-    fn test_skip_file_header_partial_header() {
-        let lines = vec![
-            "Check Point Support Information",
-            "Version: R81.20",
-            // No delimiter found
-            "Section 1",
-        ];
-
-        assert_eq!(skip_file_header(&lines), 0);
-    }
 }

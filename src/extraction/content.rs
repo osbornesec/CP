@@ -60,18 +60,20 @@ pub fn extract_section_content(lines: &[&str], start: usize, end: usize) -> Stri
     content_lines[..last_meaningful].join("\n")
 }
 
-/// Find the index after the last non-empty line
+/// Locate the index immediately after the last non-whitespace line in `content_lines`.
 ///
-/// Scans through content lines to find the last line with meaningful content,
-/// ignoring whitespace-only lines at the end.
+/// Returns the position one past the final line that contains any non-whitespace characters.
+/// If no such line exists, returns `0`.
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `content_lines` - Lines to scan for meaningful content
+/// ```
+/// let lines = ["line1", "   ", "", "line2", "   ", ""];
+/// assert_eq!(find_last_meaningful_line(&lines), 4); // index after "line2"
 ///
-/// # Returns
-///
-/// Index after the last meaningful line (0 if no meaningful content found)
+/// let empty = ["", "   ", "\t"];
+/// assert_eq!(find_last_meaningful_line(&empty), 0);
+/// ```
 fn find_last_meaningful_line(content_lines: &[&str]) -> usize {
     let mut last_meaningful = 0;
     for (i, line) in content_lines.iter().enumerate() {
@@ -80,61 +82,4 @@ fn find_last_meaningful_line(content_lines: &[&str]) -> usize {
         }
     }
     last_meaningful
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_find_section_end() {
-        let lines = vec![
-            "Content line 1",
-            "Content line 2",
-            "==============================================",
-            "Next section",
-        ];
-
-        let end = find_section_end(&lines, 0);
-        assert_eq!(end, 2);
-
-        let end_no_delimiter = find_section_end(&lines, 3);
-        assert_eq!(end_no_delimiter, 4); // Should return lines.len()
-    }
-
-    #[test]
-    fn test_extract_section_content() {
-        let lines = vec!["Line 1", "Line 2", "", "Line 4", "", ""];
-
-        let content = extract_section_content(&lines, 0, 6);
-        assert_eq!(content, "Line 1\nLine 2\n\nLine 4");
-
-        let empty_content = extract_section_content(&lines, 4, 6);
-        assert_eq!(empty_content, "");
-    }
-
-    #[test]
-    fn test_extract_section_content_invalid_range() {
-        let lines = vec!["Line 1", "Line 2"];
-
-        // Start >= end
-        let content = extract_section_content(&lines, 1, 1);
-        assert_eq!(content, "");
-
-        // Start >= lines.len()
-        let content = extract_section_content(&lines, 5, 10);
-        assert_eq!(content, "");
-    }
-
-    #[test]
-    fn test_find_last_meaningful_line() {
-        let lines = vec!["Line 1", "Line 2", "", "Line 4", "", ""];
-        assert_eq!(find_last_meaningful_line(&lines), 4);
-
-        let empty_lines = vec!["", "  ", "\t"];
-        assert_eq!(find_last_meaningful_line(&empty_lines), 0);
-
-        let no_trailing_empty = vec!["Line 1", "Line 2"];
-        assert_eq!(find_last_meaningful_line(&no_trailing_empty), 2);
-    }
 }

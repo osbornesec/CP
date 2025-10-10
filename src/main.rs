@@ -1,4 +1,7 @@
-#![allow(clippy::all)]
+#![allow(
+    clippy::all,
+    reason = "Legacy CLI entrypoint retains historical lint exemptions"
+)]
 
 use anyhow::Result;
 use cpinfo_parser::cli::runner::run_cli;

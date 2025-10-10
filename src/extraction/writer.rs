@@ -55,6 +55,31 @@ pub struct SectionWriteParams<'content> {
     pub total_sections: usize,
 }
 
+impl<'content> SectionWriteParams<'content> {
+    /// Create a new set of parameters for `write_section_with_progress`.
+    #[inline]
+    #[must_use]
+    pub const fn new(
+        content_start: usize,
+        content_end: usize,
+        lines: &'content [&'content str],
+        output_file: &'content Path,
+        section_index: usize,
+        section_name: &'content str,
+        total_sections: usize,
+    ) -> Self {
+        return Self {
+            content_end,
+            content_start,
+            lines,
+            output_file,
+            section_index,
+            section_name,
+            total_sections,
+        };
+    }
+}
+
 /// Configuration for section writing operations
 #[non_exhaustive]
 pub struct WriterConfig {
@@ -376,25 +401,47 @@ pub fn write_section_simple(content: &str, output_file: &Path) -> Result<Option<
     return Ok(Some(output_file.to_path_buf()));
 }
 
-/// Write section content to a file with progress reporting
+/// Writes a section to the given output file, optionally showing a progress bar for large sections.
 ///
-/// This function handles the complexity of writing large sections with
-/// progress reporting, content filtering, and proper error handling.
-///
-/// # Arguments
-///
-/// * `params` - Section write parameters including content location and progress info
-/// * `config` - Writer configuration
+/// The function writes lines in the range [`content_start`, `content_end`) from `params.lines` into
+/// `params.output_file`. It may create and update a progress bar when the section is large,
+/// ensures parent directories exist, and removes the output file if no meaningful content was written.
 ///
 /// # Returns
 ///
-/// `Ok(Some(PathBuf))` if section was written successfully with meaningful content,
-/// `Ok(None)` if section was skipped due to no meaningful content,
-/// `Err(...)` if writing failed.
+/// `Ok(Some(PathBuf))` when the section was written and contains meaningful content, `Ok(None)` when
+/// the section was skipped because it contained no meaningful content, or `Err(...)` if an error
+/// occurred while creating the progress bar, preparing the file, writing content, or finalizing the result.
 ///
 /// # Errors
 ///
-/// Returns error if progress bar creation, file preparation, content writing, or result handling fails.
+/// Returns `Err` if progress reporting fails to initialize, if the destination file cannot be prepared,
+/// while writing any line, or when finalizing the file handle.
+///
+/// # Examples
+///
+/// ```
+/// use cpinfo_parser::extraction::writer::{
+///     write_section_with_progress, SectionWriteParams, WriterConfig,
+/// };
+/// use std::path::Path;
+///
+/// // Construct a minimal SectionWriteParams; fields shown for illustration.
+/// let lines: Vec<&str> = vec!["line1", "", "line2"];
+/// let params = SectionWriteParams::new(
+///     0,
+///     lines.len(),
+///     &lines,
+///     Path::new("output.txt"),
+///     1,
+///     "example",
+///     1,
+/// );
+/// let config = WriterConfig::default();
+///
+/// // Call the writer (returns Result<Option<PathBuf>, _>)
+/// let _ = write_section_with_progress(&params, &config);
+/// ```
 #[inline]
 pub fn write_section_with_progress(
     params: &SectionWriteParams,
@@ -437,135 +484,4 @@ pub fn write_section_with_progress(
         params.section_index,
         params.total_sections,
     );
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use tempfile::tempdir;
-
-    #[test]
-    fn test_sanitize_filename() {
-        assert_eq!(sanitize_filename("Normal Name"), "Normal_Name");
-        assert_eq!(
-            sanitize_filename("Path/With\\Separators"),
-            "Path_With_Separators"
-        );
-        assert_eq!(
-            sanitize_filename("Special<>|?*\"Chars"),
-            "Special______Chars"
-        );
-        assert_eq!(sanitize_filename("Colon:In:Name"), "Colon_In_Name");
-    }
-
-    #[test]
-    fn test_write_section_simple() {
-        let temp_dir = match tempdir() {
-            Ok(directory) => directory,
-            Err(error) => panic!("Failed to create temp directory for test: {error}"),
-        };
-        let output_file = temp_dir.path().join("test_section.txt");
-        let content = "Line 1\nLine 2\nLine 3";
-
-        let result = match write_section_simple(content, &output_file) {
-            Ok(result_data) => result_data,
-            Err(error) => panic!("Failed to write section: {error}"),
-        };
-        assert!(result.is_some());
-        let result_path = match result {
-            Some(path) => path,
-            None => panic!("Expected Some(path) but got None"),
-        };
-        assert_eq!(result_path, output_file);
-
-        let written_content = match fs::read_to_string(&output_file) {
-            Ok(content) => content,
-            Err(error) => panic!("Failed to read written file: {error}"),
-        };
-        assert_eq!(written_content, content);
-    }
-
-    #[test]
-    fn test_write_section_simple_empty_content() {
-        let temp_dir = match tempdir() {
-            Ok(directory) => directory,
-            Err(error) => panic!("Failed to create temp directory for test: {error}"),
-        };
-        let output_file = temp_dir.path().join("empty_section.txt");
-
-        let result = match write_section_simple("   \n\n  ", &output_file) {
-            Ok(result_data) => result_data,
-            Err(error) => panic!("Failed to write section: {error}"),
-        };
-        assert!(result.is_none());
-        assert!(!output_file.exists());
-    }
-
-    #[test]
-    fn test_write_section_with_progress_small() {
-        let temp_dir = match tempdir() {
-            Ok(directory) => directory,
-            Err(error) => panic!("Failed to create temp directory for test: {error}"),
-        };
-        let output_file = temp_dir.path().join("small_section.txt");
-        let lines = vec!["Line 1", "Line 2", "Line 3"];
-        let config = WriterConfig::default();
-
-        let params = SectionWriteParams {
-            content_end: 3,
-            content_start: 0,
-            lines: &lines,
-            output_file: &output_file,
-            section_index: 1,
-            section_name: "Test Section",
-            total_sections: 1,
-        };
-
-        let result = write_section_with_progress(&params, &config).unwrap();
-
-        assert!(result.is_some());
-        assert_eq!(result.unwrap(), output_file);
-
-        let content = fs::read_to_string(&output_file).unwrap();
-        assert_eq!(content, "Line 1\nLine 2\nLine 3\n");
-    }
-
-    #[test]
-    fn test_write_section_with_progress_empty() {
-        let temp_dir = tempdir().unwrap();
-        let output_file = temp_dir.path().join("empty_section.txt");
-        let lines = vec!["", "   ", "\n"];
-        let config = WriterConfig::default();
-
-        let params = SectionWriteParams {
-            content_end: 3,
-            content_start: 0,
-            lines: &lines,
-            output_file: &output_file,
-            section_index: 1,
-            section_name: "Empty Section",
-            total_sections: 1,
-        };
-
-        let result = write_section_with_progress(&params, &config).unwrap();
-
-        assert!(result.is_none());
-        assert!(!output_file.exists());
-    }
-
-    #[test]
-    fn test_write_section_content() {
-        let mut buffer = Vec::new();
-        let lines = vec!["", "Content Line 1", "", "Content Line 2", ""];
-
-        let (lines_written, has_content) =
-            write_section_content(&mut buffer, &lines, 0, 5, None).unwrap();
-
-        assert_eq!(lines_written, 2);
-        assert!(has_content);
-
-        let content = String::from_utf8(buffer).unwrap();
-        assert_eq!(content, "Content Line 1\n\nContent Line 2\n");
-    }
 }

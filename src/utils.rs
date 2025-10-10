@@ -5,33 +5,30 @@ pub mod conversions;
 use crate::error::{CpinfoError, Result};
 use std::sync::{Mutex, MutexGuard};
 
-/// Safe mutex access with proper error handling
+/// Acquire a lock on the given mutex, translating a poisoned mutex into `CpinfoError::mutex_poisoned()`.
 ///
-/// This function provides centralized error handling for mutex operations,
-/// converting mutex poisoning errors into proper `CpinfoError::MutexPoisoned` variants.
+/// # Returns
 ///
-/// # Arguments
-/// * `mutex` - The mutex to lock
+/// `Ok(MutexGuard<'_, T>)` containing the guard if the lock was acquired, `Err(CpinfoError::mutex_poisoned())` if the mutex is poisoned.
 ///
 /// # Errors
 ///
-/// Returns a `CpinfoError::MutexPoisoned` if the mutex is poisoned.
+/// Returns `Err(CpinfoError::mutex_poisoned())` when the mutex has been poisoned by a prior panic.
 ///
 /// # Examples
+///
 /// ```
 /// use std::sync::Mutex;
 /// use cpinfo_parser::utils::safe_mutex_lock;
 ///
 /// let data = Mutex::new(42);
-/// match safe_mutex_lock(&data) {
-///     Ok(guard) => println!("Value: {}", *guard),
-///     Err(e) => eprintln!("Mutex error: {}", e),
-/// }
+/// let guard = safe_mutex_lock(&data).expect("mutex should not be poisoned");
+/// assert_eq!(*guard, 42);
 /// ```
 #[inline]
-pub fn safe_mutex_lock<T>(mutex: &Mutex<T>) -> Result<MutexGuard<T>> {
+pub fn safe_mutex_lock<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>> {
     return match mutex.lock() {
         Ok(guard) => Ok(guard),
-        Err(_poison_err) => return Err(CpinfoError::mutex_poisoned()),
+        Err(_poison_err) => Err(CpinfoError::mutex_poisoned()),
     };
 }

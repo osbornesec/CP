@@ -1,0 +1,147 @@
+//\! Unit tests for extraction::basic module
+//\! Tests for the SectionExtractor facade
+
+use cpinfo_parser::extraction::basic::SectionExtractor;
+use std::fs;
+use tempfile::tempdir;
+
+fn create_test_cpinfo_file() -> (tempfile::TempDir, std::path::PathBuf) {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let file_path = temp_dir.path().join("test.cpinfo");
+
+    let content = "Check Point Support Information
+
+==============================================
+System Information
+==============================================
+System: Check Point Security Gateway
+Version: R80.40
+Build: 12345
+
+==============================================
+Network Configuration
+==============================================
+Interfaces: eth0, eth1
+Routes: Default gateway configured
+DNS: 8.8.8.8, 8.8.4.4
+
+==============================================
+";
+
+    fs::write(&file_path, content).expect("Failed to write test file");
+    (temp_dir, file_path)
+}
+
+#[test]
+fn test_section_extractor_new() {
+    let extractor = SectionExtractor::new();
+    // Verify creation doesn't panic
+    let _ = extractor;
+}
+
+#[test]
+fn test_section_extractor_default() {
+    let extractor = SectionExtractor::default();
+    // Verify default creation doesn't panic
+    let _ = extractor;
+}
+
+#[test]
+fn test_extract_sections_basic() {
+    let (_temp_input_dir, input_file) = create_test_cpinfo_file();
+    let temp_output_dir = tempdir().expect("Failed to create temp output directory");
+
+    let result = SectionExtractor::extract_sections(&input_file, temp_output_dir.path());
+    assert\!(result.is_ok());
+
+    let extraction_result = result.unwrap();
+    assert_eq\!(extraction_result.sections_extracted, 2);
+    assert_eq\!(extraction_result.section_files.len(), 2);
+    assert_eq\!(extraction_result.output_directory, temp_output_dir.path());
+}
+
+#[test]
+fn test_extract_sections_organized() {
+    let (_temp_input_dir, input_file) = create_test_cpinfo_file();
+    let temp_output_dir = tempdir().expect("Failed to create temp output directory");
+
+    let result = SectionExtractor::extract_sections_organized(&input_file, temp_output_dir.path());
+    assert\!(result.is_ok());
+
+    let organized_result = result.unwrap();
+    assert_eq\!(organized_result.sections_extracted, 2);
+    assert_eq\!(organized_result.section_files.len(), 2);
+    assert_eq\!(organized_result.output_directory, temp_output_dir.path());
+    assert\!(\!organized_result.directories_created.is_empty());
+}
+
+#[test]
+fn test_extract_sections_with_vsx_detection() {
+    let (_temp_input_dir, input_file) = create_test_cpinfo_file();
+    let temp_output_dir = tempdir().expect("Failed to create temp output directory");
+
+    let result = SectionExtractor::extract_sections_with_vsx_detection(&input_file, temp_output_dir.path());
+    assert\!(result.is_ok());
+
+    let vsx_result = result.unwrap();
+    assert_eq\!(vsx_result.sections_extracted, 2);
+    assert_eq\!(vsx_result.section_files.len(), 2);
+}
+
+#[test]
+fn test_extract_sections_empty_file() {
+    let temp_input_dir = tempdir().expect("Failed to create temp input directory");
+    let temp_output_dir = tempdir().expect("Failed to create temp output directory");
+    let input_file = temp_input_dir.path().join("empty.cpinfo");
+
+    fs::write(&input_file, "No valid sections here").expect("Failed to write test file");
+
+    let result = SectionExtractor::extract_sections(&input_file, temp_output_dir.path());
+    assert\!(result.is_ok());
+
+    let extraction_result = result.unwrap();
+    assert_eq\!(extraction_result.sections_extracted, 0);
+    assert_eq\!(extraction_result.section_files.len(), 0);
+}
+
+#[test]
+fn test_extract_sections_nonexistent_file() {
+    let temp_output_dir = tempdir().expect("Failed to create temp output directory");
+    let nonexistent_file = std::path::PathBuf::from("/nonexistent/path/file.cpinfo");
+
+    let result = SectionExtractor::extract_sections(&nonexistent_file, temp_output_dir.path());
+    assert\!(result.is_err());
+}
+
+#[test]
+fn test_extract_sections_multiple_sections() {
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let file_path = temp_dir.path().join("multi.cpinfo");
+
+    let content = "==============================================
+Section 1
+==============================================
+Content 1
+
+==============================================
+Section 2
+==============================================
+Content 2
+
+==============================================
+Section 3
+==============================================
+Content 3
+
+==============================================
+";
+
+    fs::write(&file_path, content).expect("Failed to write test file");
+    let temp_output_dir = tempdir().expect("Failed to create temp output directory");
+
+    let result = SectionExtractor::extract_sections(&file_path, temp_output_dir.path());
+    assert\!(result.is_ok());
+
+    let extraction_result = result.unwrap();
+    assert_eq\!(extraction_result.sections_extracted, 3);
+}

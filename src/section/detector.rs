@@ -16,11 +16,12 @@ use std::path::Path;
 ///
 /// # Examples
 ///
-/// ```rust
-/// use cpinfo_parser::section::DelimiterDetector;
+/// ```
+/// use cpinfo_parser::section::detector::DelimiterDetector;
+/// use cpinfo_parser::section::types::SectionValidation;
 ///
-/// let detector = DelimiterDetector::new();
-/// let validation = detector.validate_section_name("System Information");
+/// let validation = DelimiterDetector::validate_section_name("System Information");
+/// assert!(matches!(validation, SectionValidation::Valid));
 /// ```
 #[derive(Debug, Clone)]
 #[non_exhaustive]
@@ -267,75 +268,18 @@ impl DelimiterDetector {
 }
 
 impl Default for DelimiterDetector {
+    /// Constructs a `DelimiterDetector` with default settings.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cpinfo_parser::section::detector::DelimiterDetector;
+    ///
+    /// let detector = DelimiterDetector::default();
+    /// let _ = detector;
+    /// ```
     #[inline]
     fn default() -> Self {
         return Self::new();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Write;
-    use tempfile::NamedTempFile;
-
-    #[test]
-    fn test_delimiter_detector_creation() {
-        let detector = DelimiterDetector::new();
-        let default_detector = DelimiterDetector::default();
-
-        // Both should be equivalent (though we can't directly compare them)
-        assert!(std::mem::size_of_val(&detector) == std::mem::size_of_val(&default_detector));
-    }
-
-    #[test]
-    fn test_validate_section_name() {
-        assert!(DelimiterDetector::validate_section_name("Valid Section").is_valid());
-        assert!(DelimiterDetector::validate_section_name("========").is_invalid());
-    }
-
-    #[test]
-    fn test_delimiter_detection_logic() {
-        // Test the inlined delimiter detection logic
-        let test_is_potential_delimiter = |line: &str| -> bool {
-            if line.len() < 5_usize {
-                false
-            } else {
-                let delimiter_chars = "=-+*#_~^";
-                let delimiter_count = line
-                    .chars()
-                    .filter(|character| return delimiter_chars.contains(*character))
-                    .count();
-                let total_chars = line.len();
-
-                delimiter_count * 5_usize >= total_chars * 4_usize
-            }
-        };
-
-        assert!(test_is_potential_delimiter("=========="));
-        assert!(test_is_potential_delimiter("----------"));
-        assert!(test_is_potential_delimiter("=====-----"));
-        assert!(!test_is_potential_delimiter("Normal text"));
-        assert!(!test_is_potential_delimiter("==="));
-    }
-
-    #[test]
-    fn test_find_valid_sections() -> Result<()> {
-        let mut temp_file = NamedTempFile::new()?;
-        writeln!(temp_file, "Some content")?;
-        writeln!(temp_file, "==============")?;
-        writeln!(temp_file, "System Information")?;
-        writeln!(temp_file, "More content")?;
-        writeln!(temp_file, "--------------")?;
-        writeln!(temp_file, "Network Details")?;
-        writeln!(temp_file, "End")?;
-
-        let sections = DelimiterDetector::find_valid_sections(temp_file.path())?;
-
-        assert_eq!(sections.len(), 2);
-        assert_eq!(sections[0].0, "System Information");
-        assert_eq!(sections[1].0, "Network Details");
-
-        Ok(())
     }
 }

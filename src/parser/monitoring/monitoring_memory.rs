@@ -129,16 +129,32 @@ impl MemoryMonitor {
     }
 }
 
-/// Get current memory usage in megabytes
+/// Query current process resident memory usage in megabytes.
 ///
-/// In test environments, returns a simulated value.
-/// In production, queries the system for actual RSS memory usage.
+/// In test builds this returns `DEFAULT_TEST_MEMORY_BASE`. In non-test builds this queries
+/// the operating system for the process RSS (resident set size), converts kilobytes to
+/// megabytes via truncation, and returns that value as an `f64`. If the parsed RSS value
+/// is invalid the function returns `0.0`. If the system command fails or yields no value,
+/// the function returns `50.0` as a conservative fallback.
+///
+/// # Examples
+///
+/// ```
+/// use cpinfo_parser::parser::monitoring::monitoring_memory::get_memory_usage_mb;
+///
+/// // In tests this will equal DEFAULT_TEST_MEMORY_BASE.
+/// let _mb = get_memory_usage_mb();
+/// ```
 #[inline]
 #[must_use]
+#[allow(
+    clippy::missing_const_for_fn,
+    reason = "Function conditionally performs runtime process inspection"
+)]
 pub fn get_memory_usage_mb() -> f64 {
     #[cfg(test)]
     {
-        return DEFAULT_TEST_MEMORY_BASE + (rand::random::<f64>() * 20.0);
+        return DEFAULT_TEST_MEMORY_BASE;
     }
 
     #[cfg(not(test))]

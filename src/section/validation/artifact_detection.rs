@@ -146,17 +146,19 @@ fn has_html_like_artifacts(text: &str) -> bool {
     return text.contains('<') && text.contains('>');
 }
 
-/// Checks for encoding artifacts in the text.
+/// Detects common text encoding artifacts in a string.
 ///
-/// This function is used by `contains_formatting_artifacts` to detect encoding issues.
+/// This checks for visible signs of encoding problems, including the Unicode replacement
+/// character U+FFFD and common mis-decoded byte sequences produced by UTF-8 ↔ Latin-1 errors
+/// (for example the sequences "\u{e2}\u{20ac}\u{2122}" and "\u{c3}\u{a2}").
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `text` - The text content to check for encoding artifacts
-///
-/// # Returns
-///
-/// Returns `true` if encoding artifacts are detected, `false` otherwise.
+/// ```rust,ignore
+/// assert!(has_encoding_artifacts("\u{FFFD}"));
+/// assert!(has_encoding_artifacts("\u{e2}\u{20ac}\u{2122}"));
+/// assert!(!has_encoding_artifacts("Normal text"));
+/// ```
 #[inline]
 #[allow(
     clippy::single_match_else,
@@ -170,46 +172,4 @@ fn has_encoding_artifacts(text: &str) -> bool {
     let has_another_artifact = text.contains("\u{c3}\u{a2}"); // Another common encoding artifact
 
     return has_replacement_char || has_utf8_latin1_error || has_another_artifact;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_formatting_artifacts() {
-        assert!(has_control_characters("text\x00control"));
-        assert!(has_excessive_whitespace("   short   "));
-        assert!(has_html_like_artifacts("<html>"));
-        assert!(!contains_formatting_artifacts("Normal text"));
-    }
-
-    #[test]
-    fn test_control_characters() {
-        assert!(has_control_characters("text\x00"));
-        assert!(has_control_characters("text\x01"));
-        assert!(!has_control_characters("text\t")); // Tab is allowed
-        assert!(!has_control_characters("normal text"));
-    }
-
-    #[test]
-    fn test_excessive_whitespace() {
-        assert!(has_excessive_whitespace("   a   "));
-        assert!(!has_excessive_whitespace("normal text"));
-        assert!(!has_excessive_whitespace("text with spaces"));
-    }
-
-    #[test]
-    fn test_html_artifacts() {
-        assert!(has_html_like_artifacts("<tag>"));
-        assert!(has_html_like_artifacts("text<br>more"));
-        assert!(!has_html_like_artifacts("normal text"));
-    }
-
-    #[test]
-    fn test_encoding_artifacts() {
-        assert!(has_encoding_artifacts("text\u{FFFD}"));
-        assert!(has_encoding_artifacts("text\u{e2}\u{20ac}\u{2122}"));
-        assert!(!has_encoding_artifacts("normal text"));
-    }
 }

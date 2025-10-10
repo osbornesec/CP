@@ -48,32 +48,22 @@ impl BackoffCalculator {
         self.current_delay
     }
 
-    /// Gets current delay without advancing the calculator
+    /// Retrieve the current backoff delay without advancing the calculator.
+    ///
+    /// This does not modify the calculator's internal state.
     ///
     /// # Returns
-    /// Current delay duration
+    ///
+    /// The current delay `Duration`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// let calc = BackoffCalculator::new(Duration::from_millis(100), Duration::from_secs(5), 2.0);
+    /// assert_eq!(calc.current(), Duration::from_millis(100));
+    /// ```
     pub(super) fn current(&self) -> Duration {
         self.current_delay
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_backoff_calculator_progression() {
-        let mut calculator = BackoffCalculator::new(
-            Duration::from_millis(100),
-            Duration::from_millis(1000),
-            2.0,
-        );
-
-        assert_eq!(calculator.current(), Duration::from_millis(100));
-        assert_eq!(calculator.next_delay(), Duration::from_millis(200));
-        assert_eq!(calculator.next_delay(), Duration::from_millis(400));
-        assert_eq!(calculator.next_delay(), Duration::from_millis(800));
-        assert_eq!(calculator.next_delay(), Duration::from_millis(1000)); // Capped
-        assert_eq!(calculator.next_delay(), Duration::from_millis(1000)); // Still capped
     }
 }

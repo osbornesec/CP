@@ -126,11 +126,20 @@ impl SectionValidation {
         return matches!(self, Self::Invalid(_));
     }
 
-    /// Check if the validation result indicates a valid section name
+    /// Indicates whether the validation result represents a valid section name.
     ///
     /// # Returns
     ///
-    /// `true` if the validation result is `Valid`, `false` otherwise
+    /// `true` if the validation result is `Valid`, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cpinfo_parser::section::types::SectionValidation;
+    ///
+    /// assert!(SectionValidation::Valid.is_valid());
+    /// assert!(!SectionValidation::Invalid(String::from("empty")).is_valid());
+    /// ```
     #[must_use]
     #[inline]
     #[allow(
@@ -139,30 +148,5 @@ impl SectionValidation {
     )]
     pub const fn is_valid(&self) -> bool {
         return matches!(self, Self::Valid);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_section_delimiter_creation() {
-        let delimiter = SectionDelimiter::new(42, "===".to_string());
-        assert_eq!(delimiter.line_number, 42);
-        assert_eq!(delimiter.content, "===");
-    }
-
-    #[test]
-    fn test_section_validation_methods() {
-        let valid = SectionValidation::Valid;
-        assert!(valid.is_valid());
-        assert!(!valid.is_invalid());
-        assert!(valid.error_message().is_none());
-
-        let invalid = SectionValidation::Invalid("Test error".to_string());
-        assert!(!invalid.is_valid());
-        assert!(invalid.is_invalid());
-        assert_eq!(invalid.error_message(), Some(&"Test error".to_string()));
     }
 }

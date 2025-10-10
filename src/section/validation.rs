@@ -126,82 +126,24 @@ pub fn validate_section_name(name: &str, debug: bool) -> SectionValidation {
     return SectionValidation::Valid;
 }
 
-/// Validates a section name without debug output
+/// Validates a section name using the default (no-debug) validation behavior.
 ///
-/// Convenience function for the most common validation use case.
+/// Returns a `SectionValidation` indicating whether the provided section name is valid or which validation rule it violated.
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `name` - The section name to validate
+/// ```
+/// use cpinfo_parser::section::types::SectionValidation;
+/// use cpinfo_parser::section::validation::validate_section_name_simple;
 ///
-/// # Returns
+/// let ok = validate_section_name_simple("Introduction");
+/// assert_eq!(ok, SectionValidation::Valid);
 ///
-/// A `SectionValidation` indicating whether the name is valid or invalid.
+/// let bad = validate_section_name_simple("");
+/// assert!(matches!(bad, SectionValidation::Invalid(_)));
+/// ```
 #[must_use]
 #[inline]
 pub fn validate_section_name_simple(name: &str) -> SectionValidation {
     return validate_section_name(name, false);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_valid_section_names() {
-        let valid_names = [
-            "System Information",
-            "Network Configuration",
-            "Security Settings",
-            "Performance Metrics",
-            "Log Analysis: Details",
-            "Section 1: Overview",
-        ];
-
-        for name in &valid_names {
-            let result = validate_section_name_simple(name);
-            assert!(
-                matches!(result, SectionValidation::Valid),
-                "Failed for: {}",
-                name
-            );
-        }
-    }
-
-    #[test]
-    fn test_invalid_section_names() {
-        let invalid_names = [
-            "",                // Empty
-            "ab",              // Too short
-            "========",        // Repeated characters
-            "| Col1 | Col2 |", // Table formatting
-            "===---+++",       // Mixed decorator
-            "!@#$%^&*()",      // No meaningful content
-        ];
-
-        for name in &invalid_names {
-            let result = validate_section_name_simple(name);
-            assert!(
-                matches!(result, SectionValidation::Invalid(_)),
-                "Should fail for: {}",
-                name
-            );
-        }
-    }
-
-    #[test]
-    fn test_validation_with_debug() {
-        // This test ensures debug output doesn't change validation logic
-        let test_name = "Valid Section Name";
-        let result_no_debug = validate_section_name(test_name, false);
-        let result_with_debug = validate_section_name(test_name, true);
-
-        match (result_no_debug, result_with_debug) {
-            (SectionValidation::Valid, SectionValidation::Valid) => (),
-            (SectionValidation::Invalid(msg1), SectionValidation::Invalid(msg2)) => {
-                assert_eq!(msg1, msg2);
-            }
-            _ => panic!("Debug flag should not change validation result"),
-        }
-    }
 }

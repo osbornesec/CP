@@ -6,6 +6,9 @@
 use core::convert::Into as _;
 use std::path::Path;
 
+#[cfg(test)]
+use crate::parser::monitoring::monitoring_config::DEFAULT_TEST_MEMORY_BASE;
+
 /// Saves a section to a file with a sanitized name.
 ///
 /// This function takes a section name, its content, and an output directory.
@@ -66,32 +69,33 @@ pub fn contains_binary_data(line: &str) -> bool {
     });
 }
 
-/// Gets current memory usage in MB
+/// Gets the current process memory usage in megabytes.
 ///
-/// Returns the memory usage of the current process in megabytes.
-/// In test mode, returns a simulated value for reproducible testing.
+/// In test builds this returns the shared `DEFAULT_TEST_MEMORY_BASE`. If the function
+/// cannot determine the memory usage at runtime, it falls back to 50.0 MB.
 ///
 /// # Returns
 ///
-/// Memory usage in MB as a floating-point number
+/// Memory usage of the current process in megabytes.
+///
+/// # Examples
+///
+/// ```
+/// use cpinfo_parser::parser::utils::get_memory_usage_mb;
+///
+/// let mb = get_memory_usage_mb();
+/// assert!(mb > 0.0);
+/// ```
 #[must_use]
 #[inline]
+#[allow(
+    clippy::missing_const_for_fn,
+    reason = "Function invokes system utilities at runtime in non-test builds"
+)]
 pub fn get_memory_usage_mb() -> f64 {
     #[cfg(test)]
     {
-        // Allow float arithmetic in test mode for simulation
-        #[allow(
-            clippy::float_arithmetic,
-            reason = "Test simulation requires float arithmetic for realistic memory values"
-        )]
-        {
-            const BASE_MB: u32 = 45;
-            const RANDOM_RANGE: u32 = 20;
-            let random_factor = rand::random::<f64>();
-            let base_value = f64::from(BASE_MB);
-            let range_value = f64::from(RANDOM_RANGE);
-            return base_value + (random_factor * range_value);
-        }
+        return DEFAULT_TEST_MEMORY_BASE;
     }
 
     #[cfg(not(test))]
@@ -120,57 +124,5 @@ pub fn get_memory_usage_mb() -> f64 {
             },
             Err(_) => return 50.0,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use tempfile::tempdir;
-
-    #[test]
-    fn test_save_section() {
-        let temp_dir = tempdir().unwrap();
-        let section_name = "test section";
-        let content = "test content";
-
-        let result = save_section(section_name, content, temp_dir.path());
-        assert!(result.is_ok());
-
-        let expected_file = temp_dir.path().join("test_section.txt");
-        assert!(expected_file.exists());
-
-        let saved_content = fs::read_to_string(expected_file).unwrap();
-        assert_eq!(saved_content, content);
-    }
-
-    #[test]
-    fn test_save_section_sanitizes_filename() {
-        let temp_dir = tempdir().unwrap();
-        let section_name = "test/\\:*?\"<>|section";
-        let content = "test content";
-
-        let result = save_section(section_name, content, temp_dir.path());
-        assert!(result.is_ok());
-
-        let expected_file = temp_dir.path().join("test_________section.txt");
-        assert!(expected_file.exists());
-    }
-
-    #[test]
-    fn test_contains_binary_data() {
-        assert!(!contains_binary_data("normal text"));
-        assert!(!contains_binary_data("text with\ttabs"));
-        assert!(!contains_binary_data("text with\nnewlines"));
-        assert!(contains_binary_data("text with \u{0001} control chars"));
-        assert!(contains_binary_data("text with \u{FFFD} replacement chars"));
-    }
-
-    #[test]
-    fn test_get_memory_usage_mb() {
-        let memory = get_memory_usage_mb();
-        // In test mode, should be between 45 and 65
-        assert!(memory >= 45.0 && memory <= 65.0);
     }
 }

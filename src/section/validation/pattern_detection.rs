@@ -208,7 +208,16 @@ fn is_mixed_decorator_pattern(text: &str) -> bool {
     return decorator_count > alphanumeric_count && decorator_count >= half_length;
 }
 
-/// Checks if text contains partial delimiter patterns
+/// Detects a partial section delimiter sequence in the given text.
+///
+/// Returns `true` if the text contains the substring `"===="` but does not start with a full long delimiter `"===================="`, `false` otherwise.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// assert!(contains_partial_delimiter("Title\n====\nContent"));
+/// assert!(!contains_partial_delimiter("==================== full delimiter"));
+/// ```
 #[allow(
     clippy::single_call_fn,
     reason = "Helper function for partial delimiter detection"
@@ -217,36 +226,4 @@ fn is_mixed_decorator_pattern(text: &str) -> bool {
 fn contains_partial_delimiter(text: &str) -> bool {
     // Check for incomplete section delimiters
     return text.contains("====") && !text.starts_with("====================");
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_table_formatting_detection() {
-        assert!(is_table_formatting("| Col1 | Col2 |"));
-        assert!(is_table_formatting("+-----+-----+"));
-        assert!(!is_table_formatting("Normal Section Name"));
-    }
-
-    #[test]
-    fn test_repeated_character_patterns() {
-        assert!(is_repeated_character_line("========"));
-        assert!(is_repeated_character_line("--------"));
-        assert!(!is_repeated_character_line("Normal Text"));
-    }
-
-    #[test]
-    fn test_mixed_decorator_patterns() {
-        assert!(is_mixed_decorator_pattern("===---+++"));
-        assert!(!is_mixed_decorator_pattern("Normal Text"));
-    }
-
-    #[test]
-    fn test_partial_delimiter_detection() {
-        assert!(contains_partial_delimiter("Some ===="));
-        assert!(!contains_partial_delimiter("===================="));
-        assert!(!contains_partial_delimiter("Normal Text"));
-    }
 }

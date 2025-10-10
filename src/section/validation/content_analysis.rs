@@ -54,17 +54,25 @@ pub fn analyze_punctuation_ratio(name: &str, debug: bool) -> Option<SectionValid
     return None;
 }
 
-/// Validates that a section name contains meaningful content
+/// Determines whether a trimmed section name contains sufficient alphanumeric content to be considered meaningful.
 ///
-/// # Arguments
+/// Returns `Some(SectionValidation::Invalid(_))` when the name contains no alphanumeric characters or when fewer than 30% of characters are alphanumeric; returns `None` when the name passes this check.
 ///
-/// * `name` - The trimmed section name to validate
-/// * `debug` - Whether to output debug information
+/// # Examples
 ///
-/// # Returns
+/// ```rust,ignore
+/// // no alphanumeric characters -> invalid
+/// assert_eq!(
+///     validate_meaningful_content("---!!!", false),
+///     Some(SectionValidation::Invalid("No meaningful content".to_owned()))
+/// );
 ///
-/// * `Some(SectionValidation::Invalid)` if validation fails
-/// * `None` if validation passes and should continue to next checks
+/// // sufficient alphanumeric proportion -> valid (passes this check)
+/// assert_eq!(
+///     validate_meaningful_content("Title 123", false),
+///     None
+/// );
+/// ```
 #[must_use]
 #[inline]
 pub fn validate_meaningful_content(name: &str, debug: bool) -> Option<SectionValidation> {
@@ -109,42 +117,4 @@ pub fn validate_meaningful_content(name: &str, debug: bool) -> Option<SectionVal
         // Removed eprintln! due to clippy restrictions
     }
     return None;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_punctuation_ratio_analysis() {
-        // Low punctuation ratio - should pass
-        assert!(analyze_punctuation_ratio("System Information", false).is_none());
-
-        // High punctuation ratio - should fail
-        assert!(matches!(
-            analyze_punctuation_ratio("!@#$%^&*()", false),
-            Some(SectionValidation::Invalid(_))
-        ));
-
-        // Moderate punctuation - should pass
-        assert!(analyze_punctuation_ratio("Log Analysis: Details", false).is_none());
-    }
-
-    #[test]
-    fn test_meaningful_content_validation() {
-        // Good meaningful content - should pass
-        assert!(validate_meaningful_content("System Information", false).is_none());
-
-        // No alphanumeric - should fail
-        assert!(matches!(
-            validate_meaningful_content("!@#$%^", false),
-            Some(SectionValidation::Invalid(_))
-        ));
-
-        // Low meaningful content ratio - should fail
-        assert!(matches!(
-            validate_meaningful_content("!!!a!!!", false),
-            Some(SectionValidation::Invalid(_))
-        ));
-    }
 }

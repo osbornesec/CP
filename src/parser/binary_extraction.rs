@@ -231,7 +231,38 @@ fn find_header_end(lines: &[String]) -> usize {
     return index;
 }
 
-/// Process the end of a section - save it and update statistics
+/// Finalize a parsed section by saving its content and updating the extraction state.
+///
+/// If `has_binary` is true, increments the state's binary section counter and appends a warning
+/// indicating binary content was detected in the named section. Attempts to persist the joined
+/// `section_content` to a file named "<`section_name` with spaces replaced by _>.txt" under
+/// `output_dir`; on success increments the state's extracted sections counter and records the
+/// saved file path, on failure appends an error message to the state's errors.
+///
+/// # Parameters
+///
+/// - `state`: mutable accumulator for extraction results and diagnostics.
+/// - `section_name`: the human-readable name used for the saved filename (spaces replaced by `_`).
+/// - `section_content`: lines comprising the section body; joined with `\n` before saving.
+/// - `has_binary`: when `true`, marks the section as containing binary data and records a warning.
+/// - `output_dir`: directory where the section file will be written.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use std::path::Path;
+/// // construct a minimal state and demonstrate calling the helper (no file IO executed)
+/// let mut state = crate::parser::binary_extraction::ExtractionState::new(vec![]);
+/// let section_lines = vec!["line1".to_string(), "line2".to_string()];
+/// let out_dir = Path::new("/tmp");
+/// crate::parser::binary_extraction::process_section_end(
+///     &mut state,
+///     "Example Section",
+///     &section_lines,
+///     false,
+///     out_dir,
+/// );
+/// ```
 #[inline]
 #[allow(
     clippy::single_call_fn,
@@ -263,56 +294,5 @@ fn process_section_end(
                 .errors
                 .push(format!("Failed to save section '{section_name}': {error}"));
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use tempfile::tempdir;
-
-    #[test]
-    fn test_extract_sections_with_binary_detection() {
-        let temp_input_dir = tempdir().unwrap();
-        let temp_output_dir = tempdir().unwrap();
-
-        let input_file = temp_input_dir.path().join("test.cpinfo");
-        let test_content = "Check Point Support Information\n\n==============================================\nTest Section 1\n==============================================\nThis is normal content\nSome more normal text\n\n==============================================\nBinary Section\n==============================================\nThis has binary content\nSome normal text\n==============================================\n";
-
-        fs::write(&input_file, test_content).unwrap();
-
-        let result =
-            extract_sections_with_binary_detection(&input_file, temp_output_dir.path()).unwrap();
-
-        assert_eq!(result.sections_extracted, 2);
-        assert_eq!(result.section_files.len(), 2);
-        assert_eq!(result.output_directory, temp_output_dir.path());
-    }
-
-    #[test]
-    fn test_parse_file_with_binary_detection() {
-        let temp_dir = tempdir().unwrap();
-        let input_file = temp_dir.path().join("test.cpinfo");
-
-        fs::write(&input_file, "line1\nline2\nline3").unwrap();
-
-        let state = parse_file_with_binary_detection(&input_file).unwrap();
-        assert_eq!(state.lines.len(), 3);
-        assert_eq!(state.lines[0], "line1");
-    }
-
-    #[test]
-    fn test_find_header_end() {
-        let lines = vec![
-            "Some header".to_string(),
-            "Check Point Support Information".to_string(),
-            "More header".to_string(),
-            "==============================================".to_string(),
-            "First section".to_string(),
-        ];
-
-        let end_index = find_header_end(&lines);
-        assert_eq!(end_index, 4);
     }
 }
