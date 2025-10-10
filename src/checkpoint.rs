@@ -5,6 +5,7 @@
 
 pub mod monitoring;
 pub mod network;
+pub(in crate::checkpoint) mod regex_utils;
 pub mod security;
 pub mod types;
 pub mod version;
