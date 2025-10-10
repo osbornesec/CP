@@ -14,20 +14,40 @@ use super::types::SectionDelimiterType;
 pub struct SectionDelimiterDetector;
 
 impl SectionDelimiterDetector {
-    /// Detect section delimiter type from a line
+    /// Detects whether a trimmed line matches a recognized section delimiter.
     ///
-    /// Analyzes the provided line to determine if it contains a recognized
-    /// section delimiter pattern. Detection is based on line length and
-    /// character content validation.
+    /// The input line is trimmed of surrounding whitespace before testing. Returns
+    /// `Some(SectionDelimiterType::Command23Dash)` for exactly 23 dashes,
+    /// `Some(SectionDelimiterType::Command24Dash)` for exactly 24 dashes,
+    /// `Some(SectionDelimiterType::File66Dash)` for 66 or more dashes, and `None` otherwise.
     ///
-    /// # Arguments
+    /// # Examples
     ///
-    /// * `input_line` - The line content to analyze for delimiter patterns
+    /// ```
+    /// let d23 = "-".repeat(23);
+    /// assert_eq!(
+    ///     SectionDelimiterDetector::new().detect_section_delimiter(&d23),
+    ///     Some(SectionDelimiterType::Command23Dash)
+    /// );
     ///
-    /// # Returns
+    /// let d24 = "-".repeat(24);
+    /// assert_eq!(
+    ///     SectionDelimiterDetector::new().detect_section_delimiter(&d24),
+    ///     Some(SectionDelimiterType::Command24Dash)
+    /// );
     ///
-    /// `Some(SectionDelimiterType)` if a valid delimiter is detected,
-    /// `None` if no recognized pattern is found.
+    /// let d66 = "-".repeat(66);
+    /// assert_eq!(
+    ///     SectionDelimiterDetector::new().detect_section_delimiter(&d66),
+    ///     Some(SectionDelimiterType::File66Dash)
+    /// );
+    ///
+    /// let none = "  not-a-delimiter  ";
+    /// assert_eq!(
+    ///     SectionDelimiterDetector::new().detect_section_delimiter(none),
+    ///     None
+    /// );
+    /// ```
     #[inline]
     #[must_use]
     pub fn detect_section_delimiter(&self, input_line: &str) -> Option<SectionDelimiterType> {

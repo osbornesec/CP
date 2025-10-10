@@ -147,6 +147,23 @@ Content 3
     assert_eq\!(extraction_result.sections_extracted, 3);
 }
 
+/// Verifies that organized extraction handles long file delimiters and preserves file-section content.
+///
+/// This test writes a CPInfo-style file containing a very long hyphen (`-`) delimiter used to
+/// separate a file section for `/var/log/messages`, runs `SectionExtractor::extract_sections_organized`,
+/// and asserts the following:
+/// - No organized output file is emitted with a name containing `_var_log_messages`.
+/// - A `System_Overview.txt` organized section file exists.
+/// - The `System_Overview.txt` content includes the long hyphen delimiter.
+/// - `SectionFileParser::parse_section_file` successfully parses the system section and
+///   yields a file entry for `/var/log/messages` whose content includes the expected log lines.
+///
+/// # Examples
+///
+/// ```
+/// // This test demonstrates using the extractor on a temporary CPInfo-like file and parsing
+/// // the resulting organized section content with SectionFileParser.
+/// ```
 #[test]
 fn test_extract_sections_organized_handles_file_delimiter() {
     let temp_dir = tempdir().expect("Failed to create temp directory");

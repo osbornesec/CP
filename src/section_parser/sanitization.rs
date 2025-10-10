@@ -115,18 +115,24 @@ pub fn command_output_filename(command_name: &str) -> String {
     return format!("{}.txt", sanitize_command_name(command_name));
 }
 
-/// Generates a sanitized filename from a file path.
+/// Creates a filesystem-safe filename from a file path and ensures it ends with `.txt`.
 ///
-/// Sanitizes a file path to create a safe filename suitable for
-/// file system storage by removing or replacing unsafe characters.
-///
-/// # Arguments
-///
-/// * `file_path` - The raw file path to sanitize
+/// The returned string contains only filename-safe characters and will have a `.txt` extension;
+/// if the sanitized input already ends with `.txt`, it is returned unchanged.
 ///
 /// # Returns
 ///
-/// A sanitized filename string suitable for file system use.
+/// `String` containing the sanitized filename; guaranteed to end with `.txt`.
+///
+/// # Examples
+///
+/// ```
+/// let a = file_output_filename("some/dir/report");
+/// assert!(a.ends_with(".txt"));
+///
+/// let b = file_output_filename("logs/error_log.txt");
+/// assert_eq!(b, "logs_error_log.txt");
+/// ```
 #[must_use]
 #[inline]
 pub fn file_output_filename(file_path: &str) -> String {
@@ -161,18 +167,18 @@ pub fn sanitize_command_name(command: &str) -> String {
         .collect::<String>();
 }
 
-/// Sanitizes a file path for safe file system use.
+/// Create a filename-safe string from a file path.
 ///
-/// Replaces any characters that are not ASCII alphanumeric, forward slashes,
-/// hyphens, or underscores with underscores to create a filename-safe string.
+/// Keeps ASCII letters (`a`-`z`, `A`-`Z`), digits (`0`-`9`), hyphen (`-`), underscore (`_`),
+/// and dot (`.`) unchanged. Replaces forward slash (`/`) and backslash (`\`) with `_`,
+/// and replaces all other characters with `_`.
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `path` - The raw file path to sanitize
-///
-/// # Returns
-///
-/// A sanitized file path containing only safe characters.
+/// ```
+/// let s = sanitize_file_path("dir/sub\\name/file v1.2.txt");
+/// assert_eq!(s, "dir_sub_name_file_v1.2.txt");
+/// ```
 #[must_use]
 #[inline]
 pub fn sanitize_file_path(path: &str) -> String {

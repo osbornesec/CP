@@ -103,23 +103,39 @@ impl IntegratedWorkflowOrchestrator {
         return Ok(parsing_result);
     }
 
-    /// Parse all extracted section files in the directory.
+    /// Parses extracted section text files under `extracted_sections_dir/sections` and writes
+    /// extracted command sections into `extracted_sections_dir/commands` and file sections into
+    /// `extracted_sections_dir/files`.
+    ///
+    /// Creates the `commands` and `files` directories if they do not exist. Non-existent
+    /// `sections` directory or failures to prepare output directories cause the function to
+    /// return (0, 0, 0). Individual section files that fail to parse are skipped; successfully
+    /// parsed command and file sections are written to disk and counted.
     ///
     /// # Arguments
     ///
-    /// * `extracted_sections_dir` - Directory containing section files
+    /// * `extracted_sections_dir` - Root directory that contains a `sections` subdirectory with
+    ///   section `.txt` files and where `commands` and `files` subdirectories will be created
+    ///   (or used if already present).
     ///
     /// # Returns
     ///
-    /// Tuple of (`sections_processed`, `total_commands`, `total_files`)
+    /// A tuple of `(sections_processed, total_commands, total_files)` where:
+    /// - `sections_processed` is the number of section files that were successfully parsed,
+    /// - `total_commands` is the number of command sections written to the `commands` dir,
+    /// - `total_files` is the number of file sections written to the `files` dir.
     ///
-    /// # Errors
+    /// # Examples
     ///
-    /// Currently returns Ok for all cases, logging errors internally
+    /// ```
+    /// // Obtain an orchestrator instance appropriate for your context, then:
+    /// // let orchestrator = IntegratedWorkflowOrchestrator::new(...);
+    /// // let (sections, commands, files) = orchestrator.parse_extracted_sections(Path::new("output/extracted"));
+    /// ```
     #[inline]
     #[allow(
-        clippy::unused_self,
-        reason = "May need access to configuration in future"
+    clippy::unused_self,
+    reason = "May need access to configuration in future"
     )]
     fn parse_extracted_sections(&self, extracted_sections_dir: &Path) -> (usize, usize, usize) {
         use tracing::{info, warn};

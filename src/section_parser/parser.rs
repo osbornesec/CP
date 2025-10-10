@@ -31,7 +31,22 @@ pub struct SectionFileParser {
 }
 
 impl SectionFileParser {
-    /// Extract command section content
+    /// Retrieve the full text of a command section starting at the given line index.
+    ///
+    /// The returned string contains the header and all lines up to (but not including)
+    /// the next section header, joined with newline characters. If the line at
+    /// `start_index` is not a valid command header, this returns `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let lines = ["---", "my-cmd", "---", "echo hello", "echo world"];
+    /// let content = parser
+    ///     .extract_command_section_content(&lines, 0)
+    ///     .unwrap();
+    /// assert_eq!(content, "---\nmy-cmd\n---\necho hello\necho world");
+    /// ```
     #[inline]
     fn extract_command_section_content(
         &self,
@@ -57,7 +72,37 @@ impl SectionFileParser {
         return Some(section_lines.join("\n"));
     }
 
-    /// Extract file section content
+    /// Retrieve the full text of a file section (header and its content) starting at the given line index.
+    ///
+    /// The returned string contains the contiguous lines from the header at `start_index` up to (but not
+    /// including) the next recognized section header. If `start_index` does not point to a valid file
+    /// header, `None` is returned.
+    ///
+    /// # Parameters
+    ///
+    /// - `lines`: slice of line string slices representing the file contents split by lines.
+    /// - `start_index`: index into `lines` where a file header is expected to begin.
+    ///
+    /// # Returns
+    ///
+    /// `Some(String)` containing the joined lines of the file section (header + content) when a valid
+    /// file header is found at `start_index`, `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// let parser = SectionFileParser::new();
+    /// let lines = vec![
+    ///     "------------------------------------------------------------------", // file header delimiter
+    ///     "path/to/file.txt",
+    ///     "------------------------------------------------------------------",
+    ///     "file contents line 1",
+    ///     "file contents line 2",
+    /// ];
+    /// let slice: Vec<&str> = lines.iter().map(|s| *s).collect();
+    /// let section = parser.extract_file_section_content(&slice, 0);
+    /// assert!(section.is_some());
+    /// ```
     #[inline]
     fn extract_file_section_content(&self, lines: &[&str], start_index: usize) -> Option<String> {
         if !self.is_file_header(lines, start_index) {
@@ -79,7 +124,25 @@ impl SectionFileParser {
         return Some(section_lines.join("\n"));
     }
 
-    /// Find the next section start index
+    /// Locate the index of the next section header (command or file) at or after `start_index`.
+    ///
+    /// # Returns
+    ///
+    /// The line index of the next command or file header, or `lines.len()` if none is found.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let lines = [
+    ///     "-------------------------", // command header opening (detector-dependent)
+    ///     "do-something",
+    ///     "-------------------------",
+    ///     "some other line",
+    /// ];
+    /// let idx = parser.find_next_section_start(&lines, 0);
+    /// assert_eq!(idx, 0);
+    /// ```
     #[must_use]
     #[inline]
     fn find_next_section_start(&self, lines: &[&str], start_index: usize) -> usize {
@@ -91,6 +154,19 @@ impl SectionFileParser {
         return lines.len();
     }
 
+    /// Determines whether the slice of lines beginning at `index` forms a valid command header.
+    ///
+    /// This checks that there are at least three lines starting at `index`, the first line is a command opening delimiter
+    /// of type `Command23Dash` or `Command24Dash`, the second line contains a non-empty command name, and the third line
+    /// is a matching closing delimiter equal to the opening delimiter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let lines = ["---", "do_something", "---", "rest of content"];
+    /// assert!(parser.is_command_header(&lines, 0));
+    /// ```
     #[inline]
     fn is_command_header(&self, lines: &[&str], index: usize) -> bool {
         if index + 2_usize >= lines.len() {
@@ -119,6 +195,14 @@ impl SectionFileParser {
         }
     }
 
+    /// Detects whether the lines starting at `index` form a valid file section header.
+    ///
+    /// A valid file header is a three-line block where:
+    /// - The first line is a file opening delimiter of type `File66Dash`,
+    /// - The second line is a non-empty file path,
+    /// - The third line is a matching `File66Dash` closing delimiter.
+    ///
+    /// This check requires at least three lines from `index` onward.
     #[inline]
     fn is_file_header(&self, lines: &[&str], index: usize) -> bool {
         if index + 2_usize >= lines.len() {
@@ -262,11 +346,26 @@ impl SectionFileParser {
         });
     }
 
-    /// Parse file section content
+    /// Parse a file section block and produce a FileSection.
+    ///
+    /// Validates opening and closing file delimiters, extracts and trims the file path,
+    /// and returns the remaining lines as the file content.
     ///
     /// # Errors
-    /// Returns an error if file section format is invalid
-    #[inline]
+    ///
+    /// Returns a `ParseError` when the section has fewer than three lines, when the opening
+    /// or closing delimiter is missing or invalid, when the opening and closing delimiters
+    /// do not match, or when the file path is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let section = "------------------------------------------------------------------\npath/to/file.txt\n------------------------------------------------------------------\nfile contents\n";
+    /// let fs = parser.parse_file_section(section).unwrap();
+    /// assert_eq!(fs.path, "path/to/file.txt");
+    /// assert_eq!(fs.content, "file contents");
+    /// ```
     pub fn parse_file_section(&self, section_content: &str) -> Result<FileSection> {
         let lines: Vec<&str> = section_content.lines().collect();
 
@@ -368,11 +467,23 @@ impl SectionFileParser {
         });
     }
 
-    /// Parse entire section file containing multiple commands and files
+    /// Parse a section file into its command and file sections.
     ///
-    /// # Errors
-    /// Returns an error if section parsing fails
-    #[inline]
+    /// Malformed or unrecognized section blocks are ignored; the method returns the collected
+    /// command and file sections found in `file_content`.
+    ///
+    /// # Returns
+    ///
+    /// A tuple `(Vec<CommandSection>, Vec<FileSection>)` containing the parsed command sections
+    /// and file sections respectively.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let (cmds, files) = parser.parse_section_file("").unwrap();
+    /// assert!(cmds.is_empty() && files.is_empty());
+    /// ```
     pub fn parse_section_file(
         &self,
         file_content: &str,

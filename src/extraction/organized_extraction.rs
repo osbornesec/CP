@@ -42,13 +42,47 @@ struct OrganizedExtractionState {
 }
 
 impl OrganizedExtractionState {
+    /// Appends a section file path to the accumulated list of generated section files.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let base = Path::new("/tmp");
+    /// let mut state = OrganizedExtractionState::new(base).unwrap();
+    /// state.add_section_file(PathBuf::from("sections/sec1.txt"));
+    /// assert!(state.section_files.iter().any(|p| p.ends_with("sec1.txt")));
+    /// ```
     fn add_section_file(&mut self, file: PathBuf) {
         self.section_files.push(file);
     }
 
+    /// Creates a new OrganizedExtractionState rooted at `base_path` by ensuring a
+    /// `sections` directory exists and recording any directories created during
+    /// initialization.
+    ///
+    /// The returned state contains:
+    /// - `sections_dir`: the path `base_path/sections`
+    /// - `directories_created`: a list containing `sections_dir` if it was created
+    ///   by this call (empty otherwise)
+    /// - default `writer_config` and an empty `section_files` list.
+    ///
+    /// # Parameters
+    ///
+    /// - `base_path`: base directory under which the `sections` directory is created.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::path::Path;
+    /// // Initialize state under the given base path (creates `base_path/sections` if needed)
+    /// let state = OrganizedExtractionState::new(Path::new("output")).unwrap();
+    /// assert!(state.sections_dir.ends_with("sections"));
+    /// ```
     #[allow(
-        clippy::single_call_fn,
-        reason = "Semantic clarity and code organization"
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
     )]
     #[inline]
     fn new(base_path: &Path) -> Result<Self> {
@@ -146,10 +180,42 @@ pub fn extract_sections_organized<P1: AsRef<Path>, P2: AsRef<Path>>(
     return Ok(result);
 }
 
-/// Process sections with organized directory structure
+/// Processes input lines to discover section blocks, write each section into the
+/// "sections" directory under `output_path`, and returns the accumulated extraction state.
+///
+/// The function scans `lines` for section delimiters and names, extracts each section's
+/// content, writes section files using the configured writer, and records created
+/// directories and produced section file paths in the returned `OrganizedExtractionState`.
+///
+/// `lines` is the full file content split into lines. `output_path` is the base path
+/// under which a `sections` directory will be created (or reused) to store extracted files.
+///
+/// # Returns
+///
+/// `OrganizedExtractionState` containing directories created, the path to the sections
+/// directory, the writer configuration used, and the list of written section file paths.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+///
+/// let lines = [
+///     "-----",
+///     "Section A",
+///     "-----",
+///     "Content line 1",
+///     "Content line 2",
+/// ];
+///
+/// // Writes into "./out/sections"
+/// let state = process_organized_sections(&lines, Path::new("./out")).unwrap();
+/// // State contains information about written files and created directories.
+/// assert!(state.section_files.len() >= 0);
+/// ```
 #[allow(
-    clippy::single_call_fn,
-    reason = "Semantic clarity and code organization"
+clippy::single_call_fn,
+reason = "Semantic clarity and code organization"
 )]
 #[inline]
 fn process_organized_sections(
@@ -255,12 +321,38 @@ fn skip_file_header(lines: &[&str]) -> usize {
     return 0; // No header found, start from beginning
 }
 
-/// Find the next section starting from the given index
+/// Locate the next section delimiter block and return the section name and content range.
+///
+/// Scans `lines` beginning at `start_index` for a delimiter line equal to
+/// `"=============================================="` followed by a non-empty section name
+/// and a matching closing delimiter. When found, returns `Some((section_name, content_start, content_end))`
+/// where `content_start` is the index of the first line of the section content and
+/// `content_end` is the index one past the last content line. If no valid section is found,
+/// returns `None`.
+///
+/// # Examples
+///
+/// ```
+/// let lines = vec![
+///     "header",
+///     "==============================================",
+///     "Section A",
+///     "==============================================",
+///     "line1",
+///     "line2",
+///     "==============================================",
+///     "Section B",
+///     "==============================================",
+///     "b1",
+/// ];
+/// let slice: Vec<&str> = lines.iter().map(|s| *s).collect();
+/// let res = find_next_section(&slice, 0);
+/// assert_eq!(res, Some(("Section A".to_string(), 4, 6)));
+/// ```
 #[allow(
-    clippy::single_call_fn,
-    reason = "Semantic clarity and code organization"
+clippy::single_call_fn,
+reason = "Semantic clarity and code organization"
 )]
-#[inline]
 fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usize, usize)> {
     const DELIMITER: &str = "==============================================";
 
@@ -305,12 +397,36 @@ fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usiz
     return None;
 }
 
-/// Find the end of section content
-#[allow(
-    clippy::single_call_fn,
-    reason = "Semantic clarity and code organization"
-)]
-#[inline]
+/// Locates the line index that marks the end of a section's content.
+///
+/// Scans forward from `start_index` to find a delimiter block of the form:
+/// DELIMITER, non-empty section name line, DELIMITER. When such a block is found,
+/// the function returns the index of the first delimiter line (the start of the
+/// next section header). If no valid delimiter block is found, returns `lines.len()`.
+///
+/// # Parameters
+///
+/// - `lines`: Slice of lines to scan.
+/// - `start_index`: Index to start scanning from.
+///
+/// # Returns
+///
+/// The index of the line that begins the next section delimiter block, or `lines.len()` if none is found.
+///
+/// # Examples
+///
+/// ```
+/// let lines = [
+///     "some content",
+///     "more content",
+///     "==============================================",
+///     "Next Section",
+///     "==============================================",
+///     "following content",
+/// ];
+/// let end = find_section_content_end(&lines, 0);
+/// assert_eq!(end, 2);
+/// ```
 fn find_section_content_end(lines: &[&str], start_index: usize) -> usize {
     const DELIMITER: &str = "==============================================";
 
@@ -378,10 +494,36 @@ fn count_estimated_sections(lines: &[&str]) -> usize {
     );
 }
 
-/// Extract a single section with organized structure
+/// Writes the specified section to a sanitized file inside the sections directory.
+///
+/// The section content is written to a file named "<sanitized_section_name>.txt" located
+/// in `params.sections_dir`. Returns the path to the written file when a file is produced,
+/// or `None` when no file was created for the section.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::PathBuf;
+///
+/// // Minimal example; types `OrganizedExtractionParams` and `WriterConfig` are assumed to be
+/// // available in the current crate/module.
+/// let lines = vec!["line 1".to_string(), "line 2".to_string()];
+/// let params = OrganizedExtractionParams {
+///     sections_dir: PathBuf::from("out/sections"),
+///     content_start: 0,
+///     content_end: 1,
+///     lines: &lines,
+///     section_index: 1,
+///     section_name: "Example Section",
+///     total_sections: 1,
+/// };
+/// let writer_cfg = WriterConfig::default();
+/// let result = extract_organized_section(&params, &writer_cfg);
+/// assert!(result.is_ok());
+/// ```
 #[allow(
-    clippy::single_call_fn,
-    reason = "Semantic clarity and code organization"
+clippy::single_call_fn,
+reason = "Semantic clarity and code organization"
 )]
 #[inline]
 fn extract_organized_section(

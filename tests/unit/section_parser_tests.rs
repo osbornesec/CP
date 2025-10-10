@@ -101,6 +101,17 @@ mod section_delimiter_tests {
         assert_eq!(result, None);
     }
 
+    /// Detects that an input of 67 consecutive dashes is recognized as the 66-dash file delimiter variant.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use crate::section_delimiter_tests::*; // adjust path as needed in real tests
+    /// let detector = SectionDelimiterDetector::new();
+    /// let input = "-------------------------------------------------------------------"; // 67 dashes
+    /// let result = detector.detect_section_delimiter(input);
+    /// assert_eq!(result, Some(SectionDelimiterType::File66Dash));
+    /// ```
     #[test]
     fn should_detect_67_dash_file_delimiter() {
         // Test 7: Should detect 67-dash file delimiter pattern (variant of file output wrapper)
