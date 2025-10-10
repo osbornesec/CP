@@ -11,6 +11,24 @@ use tempfile::tempdir;
 mod parse_extracted_sections_tests {
     use super::*;
 
+    /// Writes a synthetic section file at `path` containing the provided command blocks and file entries.
+    ///
+    /// The file will contain, for each command, a header delimiter, the command text, a delimiter, and an "Output of <command>" line.
+    /// For each file entry, the function appends a 66-character delimiter, the file path, the delimiter again, and the file content.
+    /// Panics if the file cannot be written.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::Path;
+    /// let dst = std::env::temp_dir().join("example_section.txt");
+    /// let commands = ["echo hello", "ls -la"];
+    /// let files = [("src/lib.rs", "fn main() {}"), ("README.md", "# Title")];
+    /// create_test_section_file(&dst, &commands, &files);
+    /// assert!(dst.exists());
+    /// // clean up if desired:
+    /// let _ = std::fs::remove_file(&dst);
+    /// ```
     fn create_test_section_file(path: &std::path::Path, commands: &[&str], files: &[(& str, &str)]) {
         let mut content = String::new();
         
@@ -29,6 +47,26 @@ mod parse_extracted_sections_tests {
         fs::write(path, content).expect("Failed to write test section file");
     }
 
+    /// Verifies that a temporary workspace can contain a sections/ directory with a .txt section file.
+    ///
+    /// Sets up a temporary directory, creates a `sections/` subdirectory, writes a synthetic
+    /// section file containing a command, and asserts that both the directory and the file exist.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tempfile::tempdir;
+    /// use std::fs::create_dir_all;
+    /// use std::path::Path;
+    ///
+    /// let temp_dir = tempdir().expect("failed to create temp dir");
+    /// let sections_dir = temp_dir.path().join("sections");
+    /// create_dir_all(&sections_dir).expect("failed to create sections dir");
+    /// let section_file = sections_dir.join("test_section.txt");
+    /// // create_test_section_file(&section_file, &["ls -la"], &[]);
+    /// assert!(sections_dir.exists());
+    /// assert!(section_file.parent().unwrap().exists());
+    /// ```
     #[test]
     fn should_parse_sections_from_sections_directory() {
         // Test: Should look for sections/ subdirectory and parse contents
@@ -74,6 +112,20 @@ mod parse_extracted_sections_tests {
         assert\!(files_dir.exists());
     }
 
+    /// Verifies the parser handles a missing `sections/` directory without failing.
+    ///
+    /// Expects the parsing phase to treat the absence of `sections/` as no work and produce a zeroed result `(0, 0, 0)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tempfile::tempdir;
+    ///
+    /// let temp_dir = tempdir().expect("failed to create temp dir");
+    /// let sections_dir = temp_dir.path().join("sections");
+    /// assert!(!sections_dir.exists());
+    /// // calling the parser here should yield (0, 0, 0) per implementation
+    /// ```
     #[test]
     fn should_handle_missing_sections_directory() {
         // Test: Should gracefully handle when sections/ directory doesn't exist
@@ -89,6 +141,33 @@ mod parse_extracted_sections_tests {
         // This is validated by the implementation
     }
 
+    /// Ensures that only files with the `.txt` extension inside a `sections/` directory are considered for parsing.
+    ///
+    /// This test creates a temporary `sections/` directory containing a `.txt` file and additional files with other extensions
+    /// and verifies their presence; the parsing phase is expected to process only the `.txt` file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Setup a temporary sections/ directory with mixed file types.
+    /// let temp_dir = tempfile::tempdir().unwrap();
+    /// let sections_dir = temp_dir.path().join("sections");
+    /// std::fs::create_dir_all(&sections_dir).unwrap();
+    ///
+    /// let txt_file = sections_dir.join("section.txt");
+    /// let log_file = sections_dir.join("section.log");
+    /// let no_ext_file = sections_dir.join("section");
+    ///
+    /// // Write files (helper `create_test_section_file` used in the test suite)
+    /// create_test_section_file(&txt_file, &["ls"], &[]);
+    /// std::fs::write(&log_file, "log content").unwrap();
+    /// std::fs::write(&no_ext_file, "no ext content").unwrap();
+    ///
+    /// // All files exist on disk; the parser should only process `section.txt`.
+    /// assert!(txt_file.exists());
+    /// assert!(log_file.exists());
+    /// assert!(no_ext_file.exists());
+    /// ```
     #[test]
     fn should_process_only_txt_files_in_sections() {
         // Test: Should only process .txt files from sections/ directory
@@ -129,6 +208,12 @@ mod parse_extracted_sections_tests {
         // The walkdir in implementation should find this file
     }
 
+    /// Confirms that command blocks from a section file are placed into `commands/` and file entries into `files/`.
+    ///
+    /// This integration-style test creates a temporary workspace with `sections/`, `commands/`, and `files/`
+    /// directories, writes a section file containing both command blocks and file mappings, and then asserts
+    /// that the section file and the expected output directories exist. The parsing phase is expected to
+    /// separate command entries into the `commands/` directory and file entries into the `files/` directory.
     #[test]
     fn should_separate_commands_and_files_into_different_directories() {
         // Test: Commands should go to commands/, files should go to files/
@@ -156,6 +241,17 @@ mod parse_extracted_sections_tests {
         // Implementation will parse and separate into appropriate directories
     }
 
+    /// Verifies that a sections/ directory containing no `.txt` files is handled gracefully.
+    ///
+    /// The test creates a temporary `sections/` directory, writes only non-`.txt` files into it,
+    /// and asserts the directory exists. The expected outcome is that no section files are processed
+    /// (conceptually resulting in a `(0, 0, 0)` processed-count result).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // executed as part of the test suite
+    /// ```
     #[test]
     fn should_handle_empty_sections_directory() {
         // Test: Should handle sections/ directory with no .txt files
@@ -172,6 +268,26 @@ mod parse_extracted_sections_tests {
         // Should result in (0, 0, 0) since no .txt files to process
     }
 
+    /// Ensures the parser skips malformed section files without panicking.
+    ///
+    /// Creates a temporary `sections/` directory containing a `.txt` file with invalid
+    /// section content and asserts the file exists; the test expects the parsing
+    /// phase to handle the invalid file by skipping it rather than crashing.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let temp_dir = tempfile::tempdir().expect("Failed to create temp directory");
+    /// let sections_dir = temp_dir.path().join("sections");
+    /// std::fs::create_dir_all(&sections_dir).expect("Failed to create sections dir");
+    ///
+    /// let bad_file = sections_dir.join("bad.txt");
+    /// std::fs::write(&bad_file, "This is not a valid section file format")
+    ///     .expect("Failed to write bad file");
+    ///
+    /// assert!(bad_file.exists());
+    /// // Parsing should skip the invalid file and continue without panicking.
+    /// ```
     #[test]
     fn should_handle_malformed_section_files() {
         // Test: Should gracefully handle section files that can't be parsed
@@ -188,6 +304,9 @@ mod parse_extracted_sections_tests {
         // Should not crash, just skip the invalid file
     }
 
+    /// Verifies that command output filenames are sanitized when processing section files.
+    ///
+    /// Creates temporary `sections/` and `commands/` directories, writes a section file containing a command whose output path contains slashes, and asserts the `commands/` directory exists to indicate that the pipeline produced sanitized output filenames.
     #[test]
     fn should_sanitize_output_filenames() {
         // Test: Output filenames should be sanitized
@@ -211,6 +330,29 @@ mod parse_extracted_sections_tests {
 mod directory_structure_tests {
     use super::*;
 
+    /// Asserts that "sections", "commands", and "files" directories can be created and exist as sibling directories.
+    ///
+    /// Verifies each directory exists and that all three share the same parent directory.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::fs::create_dir_all;
+    /// use tempfile::tempdir;
+    ///
+    /// let temp = tempdir().unwrap();
+    /// let sections = temp.path().join("sections");
+    /// let commands = temp.path().join("commands");
+    /// let files = temp.path().join("files");
+    ///
+    /// create_dir_all(&sections).unwrap();
+    /// create_dir_all(&commands).unwrap();
+    /// create_dir_all(&files).unwrap();
+    ///
+    /// assert!(sections.is_dir() && commands.is_dir() && files.is_dir());
+    /// assert_eq!(sections.parent(), commands.parent());
+    /// assert_eq!(commands.parent(), files.parent());
+    /// ```
     #[test]
     fn should_create_expected_output_structure() {
         // Test: Verify the complete expected directory structure
@@ -235,6 +377,30 @@ mod directory_structure_tests {
         assert_eq\!(commands_dir.parent(), files_dir.parent());
     }
 
+    /// Verifies that an existing `commands/` directory and its files are preserved when sections are created.
+    ///
+    /// Ensures that processing or preparing the workspace does not remove or overwrite pre-existing files under `commands/`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tempfile::tempdir;
+    /// use std::fs::{create_dir_all, write};
+    /// use std::path::Path;
+    ///
+    /// let temp_dir = tempdir().expect("tempdir");
+    /// let sections_dir = temp_dir.path().join("sections");
+    /// let commands_dir = temp_dir.path().join("commands");
+    /// create_dir_all(&sections_dir).unwrap();
+    /// create_dir_all(&commands_dir).unwrap();
+    /// let existing = commands_dir.join("existing.txt");
+    /// write(&existing, "existing").unwrap();
+    /// assert!(existing.exists());
+    /// // Simulate creating a section file; real processing should preserve `existing`.
+    /// let section_file = sections_dir.join("new.txt");
+    /// std::fs::write(&section_file, "## command\n\necho hi\n").unwrap();
+    /// assert!(existing.exists());
+    /// ```
     #[test]
     fn should_handle_existing_commands_directory() {
         // Test: Should work correctly if commands/ already exists
@@ -288,6 +454,32 @@ mod directory_structure_tests {
 mod error_handling_tests {
     use super::*;
 
+    /// Verifies that parsing continues for other section files when one file fails to parse.
+    ///
+    /// Sets up a temporary `sections/` directory containing two well-formed section `.txt` files and
+    /// one malformed file, asserting their presence and expecting the parser to skip the invalid file
+    /// while processing the valid ones.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let temp_dir = tempdir().expect("Failed to create temp directory");
+    /// let sections_dir = temp_dir.path().join("sections");
+    /// create_dir_all(&sections_dir).expect("Failed to create sections");
+    ///
+    /// let good_file = sections_dir.join("good.txt");
+    /// create_test_section_file(&good_file, &["ls"], &[]);
+    ///
+    /// let bad_file = sections_dir.join("bad.txt");
+    /// fs::write(&bad_file, "completely invalid content").expect("Failed to write bad file");
+    ///
+    /// let good_file2 = sections_dir.join("good2.txt");
+    /// create_test_section_file(&good_file2, &["ps"], &[]);
+    ///
+    /// assert!(good_file.exists());
+    /// assert!(bad_file.exists());
+    /// assert!(good_file2.exists());
+    /// ```
     #[test]
     fn should_continue_on_parse_errors() {
         // Test: Should continue processing other files if one fails to parse
@@ -406,6 +598,31 @@ mod integration_workflow_tests {
         assert\!(content.contains("whoami"));
     }
 
+    /// Verifies that a section file can contain multiple file entries and that each file path is present in the section content.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let temp_dir = tempdir().expect("Failed to create temp directory");
+    /// let sections_dir = temp_dir.path().join("sections");
+    /// std::fs::create_dir_all(&sections_dir).expect("Failed to create sections");
+    ///
+    /// let section_file = sections_dir.join("multi_file.txt");
+    /// create_test_section_file(
+    ///     &section_file,
+    ///     &[],
+    ///     &[
+    ///         ("/etc/hosts", "127.0.0.1 localhost"),
+    ///         ("/etc/hostname", "server01"),
+    ///         ("/etc/resolv.conf", "nameserver 8.8.8.8"),
+    ///     ],
+    /// );
+    ///
+    /// let content = std::fs::read_to_string(&section_file).expect("Failed to read section file");
+    /// assert!(content.contains("/etc/hosts"));
+    /// assert!(content.contains("/etc/hostname"));
+    /// assert!(content.contains("/etc/resolv.conf"));
+    /// ```
     #[test]
     fn should_support_multiple_files_in_single_section() {
         // Test: Section file with multiple file sections

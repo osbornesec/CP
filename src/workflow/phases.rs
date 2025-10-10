@@ -61,20 +61,32 @@ impl IntegratedWorkflowOrchestrator {
         return Ok(result);
     }
 
-    /// Execute Phase 2: Parse extracted section files.
+    /// Execute Phase 2 by parsing section files found under the given extraction directory.
+    ///
+    /// If a `progress_reporter` is provided, the reporter is started with a Phase 2 title and
+    /// will be updated with the total number of outputs (commands + files) produced and an
+    /// operation message upon completion.
     ///
     /// # Arguments
     ///
-    /// * `extracted_sections_dir` - Directory containing extracted section files
-    /// * `progress_reporter` - Optional progress reporting interface
+    /// * `extracted_sections_dir` - Root directory that contains the extracted `sections/` subdirectory to parse.
+    /// * `progress_reporter` - Optional mutable reference to a `ProgressReporter` used to report phase progress.
     ///
     /// # Returns
     ///
-    /// Tuple of (`sections_processed`, `commands_extracted`, `files_extracted`)
+    /// A tuple `(sections_processed, commands_extracted, files_extracted)` summarizing how many section
+    /// files were parsed and how many command and file outputs were produced.
     ///
-    /// # Errors
+    /// # Examples
     ///
-    /// Returns error if parsing fails or I/O operations fail
+    /// ```
+    /// // Illustrative usage (types and setup omitted for brevity):
+    /// // let orchestrator = IntegratedWorkflowOrchestrator::new(...);
+    /// // let mut reporter = ProgressReporter::new();
+    /// // let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+    /// //     orchestrator.execute_phase_2(Path::new("out/extracted"), &mut Some(&mut reporter)).await
+    /// // });
+    /// ```
     #[inline]
     #[allow(clippy::unused_async, reason = "Required by orchestrator API contract")]
     pub(super) async fn execute_phase_2(

@@ -42,10 +42,7 @@ struct OrganizedExtractionState {
 }
 
 impl OrganizedExtractionState {
-    /// Record a created section file path in the extraction state.
-    ///
-    /// Appends `file` to the internal list of extracted section file paths so it will
-    /// be included in results and any post-processing.
+    /// Append a section file path to the extraction state's list of written section files.
     ///
     /// # Examples
     ///
@@ -61,27 +58,26 @@ impl OrganizedExtractionState {
         self.section_files.push(file);
     }
 
-    /// Creates a new OrganizedExtractionState rooted at the given base path.
+    /// Create a new OrganizedExtractionState rooted at the given base path.
     ///
-    /// Ensures a "sections" subdirectory exists under `base_path` (creating it and recording it
-    /// when necessary), initializes an empty list of section files and a default writer configuration,
-    /// and returns the initialized state.
+    /// Ensures a "sections" subdirectory exists under `base_path` (creating it if necessary),
+    /// records any newly created directory in `directories_created`, initializes an empty
+    /// `section_files` list and a default `writer_config`, and stores the `sections_dir` path.
     ///
     /// # Parameters
     ///
-    /// - `base_path`: Base directory under which the `sections` directory will be created.
+    /// - `base_path`: Directory under which the `sections` subdirectory will be created.
     ///
     /// # Returns
     ///
-    /// `Ok(Self)` containing an OrganizedExtractionState with `sections_dir` set to `base_path.join("sections")`
-    /// and `directories_created` containing the `sections` directory if it was newly created; `Err` if
-    /// creating the directory fails.
+    /// `Ok(Self)` with `sections_dir` set to `base_path.join("sections")` and `directories_created`
+    /// containing the `sections` directory if it was newly created; `Err` if creating the directory fails.
     ///
     /// # Examples
     ///
     /// ```
     /// use std::path::Path;
-    /// // Create state rooted at "/tmp/output" (creates "/tmp/output/sections" if needed)
+    /// // Create state rooted at a temporary path (creates "<base>/sections" if needed)
     /// let state = crate::organized::OrganizedExtractionState::new(Path::new("/tmp/output")).unwrap();
     /// assert!(state.sections_dir.ends_with("sections"));
     /// ```
@@ -116,25 +112,24 @@ impl OrganizedExtractionState {
     }
 }
 
-/// Extract sections with organized directory structure
+/// Performs organized extraction of sections from a cpinfo-style input into a structured output directory.
 ///
-/// This function provides advanced section extraction with:
-/// - Categorized directory organization
-/// - Progress reporting for large sections
-/// - Detailed extraction statistics
-///
-/// # Arguments
-///
-/// * `input_path` - Path to the input cpinfo file
-/// * `output_path` - Base directory for organized extraction
+/// The function ensures the output directory exists, reads the input file (with a UTF-8 fallback for non-UTF8 files),
+/// extracts each recognized section into a centralized `sections` directory under the provided output path, and
+/// returns a summary with written section file paths and created directories.
 ///
 /// # Returns
 ///
-/// `OrganizedExtractionResult` with detailed extraction information
+/// `Ok(OrganizedExtractionResult)` with extraction statistics and written section file paths on success, `Err` if
+/// reading the input or writing sections fails.
 ///
-/// # Errors
+/// # Examples
 ///
-/// Returns an error if file reading fails, validation fails, or sections cannot be written
+/// ```
+/// let result = extract_sections_organized("tests/data/sample.cpinfo", "tmp/output").unwrap();
+/// // At least zero sections should be reported; this checks the call succeeded and returned a result.
+/// assert!(result.sections_extracted >= 0);
+/// ```
 #[inline]
 pub fn extract_sections_organized<P1: AsRef<Path>, P2: AsRef<Path>>(
     input_path: P1,
@@ -296,10 +291,35 @@ fn read_file_content(path: &Path) -> Result<String> {
     return Ok(String::from_utf8_lossy(&file_bytes).into_owned());
 }
 
-/// Skip the file header to get to actual sections
+/// Locate the start of actual sections by skipping an initial file header.
+///
+/// Searches for a line containing "Check Point Support Information" and, if found,
+/// returns the index immediately after the first delimiter line
+/// `==============================================` that follows the header.
+/// If no such header and delimiter sequence is found, returns 0.
+///
+/// # Examples
+///
+/// ```
+/// let lines = [
+///     "Some preface",
+///     "Check Point Support Information",
+///     "Some header details",
+///     "==============================================",
+///     "Section Name",
+///     "Section content line 1",
+/// ];
+/// let start = skip_file_header(&lines);
+/// assert_eq!(start, 4); // index of the line after the delimiter
+/// ```
+///
+/// ```
+/// let lines = ["No header here", "Just content"];
+/// assert_eq!(skip_file_header(&lines), 0);
+/// ```
 #[allow(
-    clippy::single_call_fn,
-    reason = "Semantic clarity and code organization"
+clippy::single_call_fn,
+reason = "Semantic clarity and code organization"
 )]
 #[inline]
 fn skip_file_header(lines: &[&str]) -> usize {
@@ -478,10 +498,25 @@ fn find_section_content_end(lines: &[&str], start_index: usize) -> usize {
     return lines.len();
 }
 
-/// Count estimated number of sections for progress reporting
+/// Estimates the number of sections to use for progress reporting.
+///
+/// The estimate counts delimiter lines, subtracts one to account for the leading
+/// delimiter, and returns at least `1`.
+///
+/// # Examples
+///
+/// ```
+/// let lines = [
+///     "==============================================",
+///     "Section A",
+///     "==============================================",
+///     "Section B",
+/// ];
+/// assert_eq!(count_estimated_sections(&lines), 2);
+/// ```
 #[allow(
-    clippy::single_call_fn,
-    reason = "Semantic clarity and code organization"
+clippy::single_call_fn,
+reason = "Semantic clarity and code organization"
 )]
 #[inline]
 fn count_estimated_sections(lines: &[&str]) -> usize {
@@ -498,19 +533,19 @@ fn count_estimated_sections(lines: &[&str]) -> usize {
 
 /// Extracts a single section and writes it to a file inside `params.sections_dir`.
 ///
-/// The section name is sanitized to form a filename (`{safe_name}.txt`) and the
-/// section content defined by `params.content_start..params.content_end` is
-/// written using the provided `writer_config`.
+/// The section name is sanitized to produce the filename `{safe_name}.txt`, and the
+/// lines in the range `params.content_start..params.content_end` are written to that file.
 ///
 /// # Returns
 ///
-/// `Some(PathBuf)` with the path to the written file if the section was written,
-/// `None` if the write was skipped.
+/// `Some(PathBuf)` with the path to the written file if the section was written, `None` if the write was skipped.
 ///
 /// # Examples
 ///
 /// ```
-/// // Given constructed `params: OrganizedExtractionParams` and `writer_config: WriterConfig`
+/// // Construct minimal params and config (pseudo-code; adapt to actual types)
+/// // let params = OrganizedExtractionParams { /* fields */ };
+/// // let writer_config = WriterConfig::default();
 /// // let result = extract_organized_section(&params, &writer_config)?;
 /// // match result {
 /// //     Some(path) => println!("Wrote section to {:?}", path),

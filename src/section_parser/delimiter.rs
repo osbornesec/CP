@@ -14,10 +14,12 @@ use super::types::SectionDelimiterType;
 pub struct SectionDelimiterDetector;
 
 impl SectionDelimiterDetector {
-    /// Determine the section delimiter type represented by a line.
+    /// Identifies whether a trimmed input line matches a known section delimiter.
     ///
-    /// Recognizes three trimmed-line patterns: exactly 23 dashes (`Command23Dash`),
-    /// exactly 24 dashes (`Command24Dash`), and 66 or more dashes (`File66Dash`).
+    /// Recognizes three patterns after trimming whitespace:
+    /// - exactly 23 dashes -> `Command23Dash`
+    /// - exactly 24 dashes -> `Command24Dash`
+    /// - 66 or more dashes -> `File66Dash`
     ///
     /// # Parameters
     ///
@@ -32,10 +34,12 @@ impl SectionDelimiterDetector {
     ///
     /// ```
     /// let det = SectionDelimiterDetector::new();
+    /// use super::types::SectionDelimiterType;
+    ///
     /// assert_eq!(det.detect_section_delimiter(&"-".repeat(23)), Some(SectionDelimiterType::Command23Dash));
     /// assert_eq!(det.detect_section_delimiter(&"-".repeat(24)), Some(SectionDelimiterType::Command24Dash));
     /// assert_eq!(det.detect_section_delimiter(&"-".repeat(66)), Some(SectionDelimiterType::File66Dash));
-    /// assert_eq!(det.detect_section_delimiter("not a delimiter"), None);
+    /// assert_eq!(det.detect_section_delimiter("  not a delimiter  "), None);
     /// ```
     #[inline]
     #[must_use]
@@ -93,11 +97,13 @@ impl SectionDelimiterDetector {
 }
 
 impl Default for SectionDelimiterDetector {
-    /// Creates a default section delimiter detector
+    /// Constructs and returns the default SectionDelimiterDetector.
     ///
-    /// # Returns
+    /// # Examples
     ///
-    /// A new detector instance using the standard configuration.
+    /// ```
+    /// let _det = SectionDelimiterDetector::default();
+    /// ```
     #[inline]
     fn default() -> Self {
         return Self::new();

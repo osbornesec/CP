@@ -42,6 +42,37 @@ More content
         assert_eq\!(extraction.sections_extracted, 2);
     }
 
+    /// Verifies that a section header with an empty name is ignored by organized extraction.
+    ///
+    /// Creates a temporary cpinfo file containing a delimiter followed by an empty section name,
+    /// then a valid section; asserts that only the valid section is extracted.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tempfile::tempdir;
+    /// # use std::fs;
+    /// # use cpinfo_parser::extraction::basic::SectionExtractor;
+    /// let temp_dir = tempdir().unwrap();
+    /// let file_path = temp_dir.path().join("test.cpinfo");
+    /// let content = "\
+    /// Check Point Support Information
+    ///
+    /// ==============================================
+    ///
+    /// ==============================================
+    /// This should not be extracted
+    ///
+    /// ==============================================
+    /// Valid Section
+    /// ==============================================
+    /// This should be extracted
+    /// ";
+    /// fs::write(&file_path, content).unwrap();
+    /// let output_dir = tempdir().unwrap();
+    /// let result = SectionExtractor::extract_sections_organized(&file_path, output_dir.path()).unwrap();
+    /// assert_eq!(result.sections_extracted, 1);
+    /// ```
     #[test]
     fn should_reject_section_with_empty_name() {
         // Test: Section with empty name line should be rejected
@@ -343,6 +374,20 @@ Some content
 mod organized_output_structure_tests {
     use super::*;
 
+    /// Ensures extraction creates a "sections" directory under the provided output path.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use tempfile::tempdir;
+    /// use std::fs;
+    /// let temp_dir = tempdir().unwrap();
+    /// let file_path = temp_dir.path().join("test.cpinfo");
+    /// fs::write(&file_path, "Check Point Support Information\n\n==============================================\nTest Section\n==============================================\nContent\n").unwrap();
+    /// let output_dir = tempdir().unwrap();
+    /// SectionExtractor::extract_sections_organized(&file_path, output_dir.path()).unwrap();
+    /// assert!(output_dir.path().join("sections").exists());
+    /// ```
     #[test]
     fn should_create_sections_directory() {
         // Test: Should create a 'sections' directory in output path
@@ -436,6 +481,26 @@ Content
         }));
     }
 
+    /// Verifies that extraction does not report creating a `sections/` directory if it already exists.
+    ///
+    /// Pre-creates a `sections/` subdirectory in the output path, runs
+    /// `SectionExtractor::extract_sections_organized`, and asserts that
+    /// `extraction.directories_created` is empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Prepare input file and pre-create output/sections
+    /// let temp_input = tempdir().unwrap();
+    /// let file_path = temp_input.path().join("test.cpinfo");
+    /// std::fs::write(&file_path, "Check Point Support Information\n\n==============================================\nTest Section\n==============================================\nContent\n").unwrap();
+    ///
+    /// let output_dir = tempdir().unwrap();
+    /// std::fs::create_dir(output_dir.path().join("sections")).unwrap();
+    ///
+    /// let result = SectionExtractor::extract_sections_organized(&file_path, output_dir.path()).unwrap();
+    /// assert!(result.directories_created.is_empty());
+    /// ```
     #[test]
     fn should_not_duplicate_sections_directory() {
         // Test: Should not create sections directory if it already exists
@@ -515,6 +580,33 @@ Line 3
         assert\!(section_two.contains("Line 3"));
     }
 
+    /// Ensures that delimiter-like sequences that do not form a complete section header inside content
+    /// are ignored and do not terminate the current section or start a new one.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Create input where a delimiter appears in content but the following lines do not form a valid header.
+    /// let delimiter = "=".repeat(46);
+    /// let content = format!("\
+    /// Check Point Support Information
+    ///
+    /// {delim}
+    /// Section One
+    /// {delim}
+    /// Line 1
+    /// {delim}
+    /// Not a section because line 3 is wrong
+    /// Still section one content
+    /// {delim}
+    /// Section Two
+    /// {delim}
+    /// Line 2
+    /// ", delim = delimiter);
+    ///
+    /// // Write `content` to a file and call `SectionExtractor::extract_sections_organized`.
+    /// // The extractor should return two sections and include the false start lines in the first section.
+    /// ```
     #[test]
     fn should_ignore_false_section_starts_in_content() {
         // Test: Incomplete section headers in content should not end section
@@ -644,6 +736,17 @@ mod edge_case_tests {
         assert_eq\!(extraction.sections_extracted, 0);
     }
 
+    /// Verifies that a section with a very long name is detected and extracted.
+    ///
+    /// The test writes a cpinfo-like file containing a 500-character section name and asserts that
+    /// exactly one section is produced by the organized extraction routine.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Create an input file with an extremely long section name and run the extractor,
+    /// // then assert one section was extracted.
+    /// ```
     #[test]
     fn should_handle_very_long_section_names() {
         // Test: Very long section names should be handled
@@ -670,6 +773,33 @@ Content
         assert_eq\!(extraction.sections_extracted, 1);
     }
 
+    /// Ensures section names containing characters invalid in filenames are sanitized before creating section files.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use tempfile::tempdir;
+    /// # use std::fs;
+    /// # use cpinfo_parser::extraction::basic::SectionExtractor;
+    /// let temp_dir = tempdir().unwrap();
+    /// let file_path = temp_dir.path().join("test.cpinfo");
+    /// let content = "\
+    /// Check Point Support Information
+    ///
+    /// ==============================================
+    /// Section/With\\Special:Characters*
+    /// ==============================================
+    /// Content
+    /// ";
+    /// fs::write(&file_path, content).unwrap();
+    /// let output_dir = tempdir().unwrap();
+    /// let extraction = SectionExtractor::extract_sections_organized(&file_path, output_dir.path()).unwrap();
+    /// let filename = extraction.section_files[0].file_name().unwrap().to_str().unwrap();
+    /// assert!(!filename.contains('/'));
+    /// assert!(!filename.contains('\\'));
+    /// assert!(!filename.contains(':'));
+    /// assert!(!filename.contains('*'));
+    /// ```
     #[test]
     fn should_handle_special_characters_in_section_names() {
         // Test: Special characters in section names should be sanitized

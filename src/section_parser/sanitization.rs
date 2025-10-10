@@ -136,18 +136,19 @@ pub fn file_output_filename(file_path: &str) -> String {
     return format!("{sanitized}.txt");
 }
 
-/// Sanitizes a command name for safe file system use.
+/// Produce a filename-safe string by replacing characters that are not ASCII letters, digits, hyphens, or underscores with underscores.
 ///
-/// Replaces any characters that are not alphanumeric, hyphens, or underscores
-/// with underscores to create a filename-safe string.
+/// The function preserves ASCII letters (`a`-`z`, `A`-`Z`), digits (`0`-`9`), hyphens (`-`), and underscores (`_`); every other character is replaced with `_`.
 ///
-/// # Arguments
+/// # Examples
 ///
-/// * `command` - The raw command name to sanitize
+/// ```
+/// let s = sanitize_command_name("git status");
+/// assert_eq!(s, "git_status");
 ///
-/// # Returns
-///
-/// A sanitized command name containing only safe characters.
+/// let s = sanitize_command_name("build#1:release");
+/// assert_eq!(s, "build_1_release");
+/// ```
 #[must_use]
 #[inline]
 pub fn sanitize_command_name(command: &str) -> String {

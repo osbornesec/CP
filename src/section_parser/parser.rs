@@ -191,11 +191,37 @@ impl SectionFileParser {
         };
     }
 
-    /// Parse command section content
+    /// Parse a command section string into a `CommandSection`.
+    ///
+    /// The input must consist of at least three lines:
+    /// 1. An opening command delimiter (23 or 24 dashes).
+    /// 2. A non-empty command name on the second line.
+    /// 3. A matching closing command delimiter on the third line.
+    /// Any lines after the third line are treated as the section content and are joined with `\n`.
     ///
     /// # Errors
-    /// Returns an error if command section format is invalid
-    #[inline]
+    ///
+    /// Returns `CpinfoError::ParseError` when the section is malformed, for example:
+    /// - fewer than three lines,
+    /// - invalid or mismatched delimiters,
+    /// - an empty command name,
+    /// - or missing required lines.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let section = "\
+    /// -----------------------\n\
+    /// my-command\n\
+    /// -----------------------\n\
+    /// echo hello\n\
+    /// ";
+    /// let parsed = parser.parse_command_section(section).unwrap();
+    /// assert_eq!(parsed.name, "my-command");
+    /// assert_eq!(parsed.content, "echo hello\n");
+    /// assert!(matches!(parsed.delimiter_type, SectionDelimiterType::Command23Dash | SectionDelimiterType::Command24Dash));
+    /// ```
     pub fn parse_command_section(&self, section_content: &str) -> Result<CommandSection> {
         let lines: Vec<&str> = section_content.lines().collect();
 
@@ -534,6 +560,13 @@ impl SectionFileParser {
 }
 
 impl Default for SectionFileParser {
+    /// Constructs a SectionFileParser configured with the default delimiter detector.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let _parser = SectionFileParser::default();
+    /// ```
     #[inline]
     fn default() -> Self {
         return Self::new();

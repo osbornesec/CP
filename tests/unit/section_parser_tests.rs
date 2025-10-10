@@ -86,6 +86,17 @@ mod section_delimiter_tests {
         assert_eq!(result, None);
     }
 
+    /// Ensures a 65-dash string is not recognized as a section delimiter.
+    ///
+    /// This test verifies that a near-miss pattern of exactly 65 dashes does not produce a delimiter match.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let detector = cpinfo_parser::section_parser::SectionDelimiterDetector::new();
+    /// let input = "-----------------------------------------------------------------"; // 65 dashes
+    /// assert_eq!(detector.detect_section_delimiter(input), None);
+    /// ```
     #[test]
     fn should_reject_65_dash_near_miss_pattern() {
         // Test 6: Should reject 65-dash near-miss pattern
@@ -101,6 +112,18 @@ mod section_delimiter_tests {
         assert_eq!(result, None);
     }
 
+    /// Detects a file-section delimiter pattern that is at least 66 dashes long, accepting a 67-dash variant.
+    ///
+    /// This test verifies that the section delimiter detector recognizes a 67-character dash line as the `File66Dash` delimiter variant.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let detector = SectionDelimiterDetector::new();
+    /// let input = "-------------------------------------------------------------------"; // 67 dashes
+    /// let result = detector.detect_section_delimiter(input);
+    /// assert_eq!(result, Some(SectionDelimiterType::File66Dash));
+    /// ```
     #[test]
     fn should_detect_67_dash_file_delimiter() {
         // Test 7: Should detect 67-dash file delimiter pattern (variant of file output wrapper)
@@ -211,6 +234,15 @@ mod section_delimiter_extended_tests {
         assert_eq\!(result, None);
     }
 
+    /// Ensures a single hyphen is not recognized as a section delimiter.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cpinfo_parser::section_parser::SectionDelimiterDetector;
+    /// let detector = SectionDelimiterDetector::new();
+    /// assert_eq!(detector.detect_section_delimiter("-"), None);
+    /// ```
     #[test]
     fn should_reject_single_dash() {
         // Test: Should reject single dash
@@ -312,6 +344,22 @@ mod section_parser_header_validation_tests {
         assert\!(section.content.contains("127.0.0.1 localhost"));
     }
 
+    /// Verifies that a file section delimited by 67 dashes is parsed as a file section (>=66 variant).
+    ///
+    /// The test ensures the parser accepts a 67-dash delimiter, extracts the file path line,
+    /// and preserves the subsequent file content lines.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let delimiter = "-".repeat(67);
+    /// let content = format!("{}\n/var/log/messages\n{}\nlog entry 1\nlog entry 2\n", delimiter, delimiter);
+    /// let result = parser.parse_file_section(&content).unwrap();
+    /// assert_eq!(result.path, "/var/log/messages");
+    /// assert!(result.content.contains("log entry 1"));
+    /// assert!(result.content.contains("log entry 2"));
+    /// ```
     #[test]
     fn should_parse_valid_file_section_with_67_dash() {
         // Test: Parse a valid file section with 67 dashes (>=66 variant)
@@ -328,6 +376,18 @@ mod section_parser_header_validation_tests {
         assert\!(section.content.contains("log entry 2"));
     }
 
+    /// Parses a valid file section delimited by a long run of dashes and verifies the extracted file path and content.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let delimiter = "-".repeat(100);
+    /// let content = format!("{}\n/tmp/test.log\n{}\ntest data\n", delimiter, delimiter);
+    /// let section = parser.parse_file_section(&content).unwrap();
+    /// assert_eq!(section.path, "/tmp/test.log");
+    /// assert!(section.content.contains("test data"));
+    /// ```
     #[test]
     fn should_parse_valid_file_section_with_100_dash() {
         // Test: Parse a valid file section with 100 dashes
@@ -355,6 +415,19 @@ mod section_parser_header_validation_tests {
         assert\!(result.is_err());
     }
 
+    /// Verifies that parsing a file section fails when the opening and closing delimiters have different lengths.
+    ///
+    /// The test constructs content with a 66-dash opening delimiter and a 24-dash closing delimiter and asserts that
+    /// `SectionFileParser::parse_file_section` returns an error for the mismatched delimiters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let content = format!("{}\n/path/to/file\n{}\ncontent\n", "-".repeat(66), "-".repeat(24));
+    /// let result = parser.parse_file_section(&content);
+    /// assert!(result.is_err());
+    /// ```
     #[test]
     fn should_reject_file_section_with_mismatched_delimiters() {
         // Test: Reject file section where delimiters don't match (one is < 66)
@@ -404,6 +477,22 @@ mod section_parser_header_validation_tests {
         assert_eq\!(commands[1].name, "another_cmd");
     }
 
+    /// Ensures the parser correctly extracts a command and its content when a command section appears at the end of the file.
+    ///
+    /// This test verifies that a command section delimited with the 24-dash command marker is parsed
+    /// even when the section extends to the end of the input and is followed by command output.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let parser = SectionFileParser::new();
+    /// let content = "------------------------\nlast_command\n------------------------\nfinal output";
+    /// let result = parser.parse_section_file(content).unwrap();
+    /// let (commands, _files) = result;
+    /// assert_eq!(commands.len(), 1);
+    /// assert_eq!(commands[0].name, "last_command");
+    /// assert!(commands[0].content.contains("final output"));
+    /// ```
     #[test]
     fn should_handle_command_section_at_end_of_file() {
         // Test: Handle command section that extends to end of file
