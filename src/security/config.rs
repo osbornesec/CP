@@ -29,8 +29,8 @@ impl SecureConfig {
     /// Get a configuration value
     #[must_use]
     #[inline]
-    pub fn get(&self, key: &str) -> Option<&String> {
-        return self.settings.get(key);
+    pub fn get(&self, key: &str) -> Option<&str> {
+        return self.settings.get(key).map(String::as_str);
     }
 
     /// Create a new secure configuration

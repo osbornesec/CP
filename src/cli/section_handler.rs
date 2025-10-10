@@ -169,7 +169,7 @@ pub async fn analyze_section_file_content(
         progress_reference.start("Analyzing section file", None);
     }
 
-    match section_parser.process_section_file(&args.input).await {
+    match section_parser.process_section_file_async(&args.input).await {
         Ok(parse_result) => {
             let command_sections = &parse_result.command_sections;
             let file_sections = &parse_result.file_sections;
@@ -231,7 +231,7 @@ pub async fn extract_sections_to_output_content(
         }
     }
 
-    match section_parser.process_section_file(&args.input).await {
+    match section_parser.process_section_file_async(&args.input).await {
         Ok(parse_result) => {
             let sections_written = match perform_section_extraction(&parse_result, args) {
                 Ok(section_count) => section_count,

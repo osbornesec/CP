@@ -295,10 +295,16 @@ impl AuditTrail {
             timestamp_created: chrono::Utc::now(),
         };
 
-        self.entries.push(audit_entry.clone());
+        self.entries.push(audit_entry);
         self.last_hash = hash;
 
-        match self.persist_entry(&audit_entry) {
+        let Some(persisted_entry) = self.entries.last() else {
+            return Err(crate::error::CpinfoError::config_error(
+                "Failed to access newly inserted audit entry",
+            ));
+        };
+
+        match self.persist_entry(persisted_entry) {
             Ok(()) => {}
             Err(persist_error) => return Err(persist_error),
         }

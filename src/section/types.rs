@@ -97,16 +97,16 @@ impl SectionValidation {
     ///
     /// # Returns
     ///
-    /// `Some(String)` with the error message if invalid, `None` if valid
+    /// `Some(&str)` with the error message if invalid, `None` if valid
     #[must_use]
     #[inline]
     #[allow(
         clippy::pattern_type_mismatch,
         reason = "Pattern matching on enum variants in const context is safe here"
     )]
-    pub const fn error_message(&self) -> Option<&String> {
+    pub const fn error_message(&self) -> Option<&str> {
         if let Self::Invalid(message) = self {
-            return Some(message);
+            return Some(message.as_str());
         }
         return None;
     }

@@ -132,8 +132,11 @@ pub fn command_output_filename(command_name: &str) -> String {
 #[inline]
 pub fn file_output_filename(file_path: &str) -> String {
     let sanitized = sanitize_file_path(file_path);
-    if sanitized.len() >= 4 && sanitized[sanitized.len() - 4..].eq_ignore_ascii_case(".txt") {
-        return sanitized;
+    let suffix_start = sanitized.len().saturating_sub(4);
+    if let Some(suffix) = sanitized.get(suffix_start..) {
+        if suffix.eq_ignore_ascii_case(".txt") {
+            return sanitized;
+        }
     }
     return format!("{sanitized}.txt");
 }
@@ -180,12 +183,21 @@ pub fn sanitize_command_name(command: &str) -> String {
 #[must_use]
 #[inline]
 pub fn sanitize_file_path(path: &str) -> String {
-    return path
-        .bytes()
-        .map(|byte| match byte {
-            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' => byte as char,
-            b'/' | b'\\' => '_',
-            _ => '_',
-        })
-        .collect();
+    return path.bytes().map(sanitize_path_byte).collect();
+}
+
+#[allow(
+    clippy::single_call_fn,
+    reason = "Helper isolates byte sanitization for clarity and reusability"
+)]
+#[inline]
+fn sanitize_path_byte(byte: u8) -> char {
+    if matches!(
+        byte,
+        b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.'
+    ) {
+        return char::from(byte);
+    }
+
+    return '_';
 }

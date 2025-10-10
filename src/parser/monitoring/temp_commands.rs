@@ -5,6 +5,7 @@ use crate::parser::config::PerformanceConfig;
 use crate::parser::monitoring::config::{LINE_BUFFER_CAPACITY, SECTION_DELIMITER};
 use crate::parser::stats::CacheStats;
 use crate::Result;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -338,13 +339,13 @@ impl<'input> MonitorCommand<ResourceStats> for ResourceMonitorCommand<'input> {
 
         let peak_memory_mb = memory_samples
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .max_by(|a, b| a.total_cmp(b))
             .copied()
             .unwrap_or(0.0);
 
         let peak_cpu_percent = cpu_samples
             .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .max_by(|a, b| a.total_cmp(b))
             .copied()
             .unwrap_or(0.0);
 

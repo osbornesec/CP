@@ -111,9 +111,10 @@ impl CoreParsingFacade {
         };
         let file_size = metadata.len();
 
-        // SAFETY: Memory mapping is safe as long as the file remains open
-        // and we don't modify the underlying file during the mapping lifetime.
-        // The file handle is held for the duration of this function.
+        // SAFETY: The file was opened in read-only mode and stays open for the entire
+        // lifetime of the mapping (scoped to this function). We never write through the
+        // mapping and treat the returned slice as immutable data, so no aliasing or
+        // modification can occur while the map is live.
         let mmap = unsafe {
             match MmapOptions::new().map(&file) {
                 Ok(memory_map) => memory_map,
@@ -176,9 +177,9 @@ impl CoreParsingFacade {
         };
         let file_size = metadata.len();
 
-        // SAFETY: Memory mapping is safe as long as the file remains open
-        // and we don't modify the underlying file during the mapping lifetime.
-        // The file handle is held for the duration of this function.
+        // SAFETY: The file is opened read-only and remains open for the entire scope of
+        // this function. We only perform immutable reads from the mapping, ensuring that
+        // no concurrent mutation or aliasing violations can occur while it is active.
         let mmap = unsafe {
             match MmapOptions::new().map(&file) {
                 Ok(memory_map) => memory_map,
