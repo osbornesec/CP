@@ -181,7 +181,7 @@ impl IntegratedWorkflowOrchestrator {
         for path in file_paths {
             let handle = task::spawn(async move {
                 let parser = SectionFileParser::new();
-                return parser.process_section_file(&path).await;
+                return parser.process_section_file_async(&path).await;
             });
             join_handles.push(handle);
         }

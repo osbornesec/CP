@@ -42,14 +42,14 @@ fn test_section_validation_invalid() {
     let validation = SectionValidation::Invalid("Test error".to_string());
     assert\!(\!validation.is_valid());
     assert\!(validation.is_invalid());
-    assert_eq\!(validation.error_message(), Some(&"Test error".to_string()));
+    assert_eq\!(validation.error_message(), Some("Test error"));
 }
 
 #[test]
 fn test_section_validation_invalid_empty_message() {
     let validation = SectionValidation::Invalid(String::new());
     assert\!(validation.is_invalid());
-    assert_eq\!(validation.error_message(), Some(&String::new()));
+    assert_eq\!(validation.error_message(), Some(""));
 }
 
 #[test]

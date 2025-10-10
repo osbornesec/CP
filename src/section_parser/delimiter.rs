@@ -49,27 +49,20 @@ impl SectionDelimiterDetector {
 
         match length {
             23 => {
-                if Self::is_all_dashes(trimmed_content) {
-                    Some(SectionDelimiterType::Command23Dash)
-                } else {
-                    None
-                }
+                return Self::is_all_dashes(trimmed_content)
+                    .then_some(SectionDelimiterType::Command23Dash);
             }
             24 => {
-                if Self::is_all_dashes(trimmed_content) {
-                    Some(SectionDelimiterType::Command24Dash)
-                } else {
-                    None
-                }
+                return Self::is_all_dashes(trimmed_content)
+                    .then_some(SectionDelimiterType::Command24Dash);
             }
             n if n >= 66 => {
-                if Self::is_all_dashes(trimmed_content) {
-                    Some(SectionDelimiterType::File66Dash)
-                } else {
-                    None
-                }
+                return Self::is_all_dashes(trimmed_content)
+                    .then_some(SectionDelimiterType::File66Dash);
             }
-            _ => None,
+            _ => {
+                return None;
+            }
         }
     }
 

@@ -137,6 +137,10 @@ impl IntegratedWorkflowOrchestrator {
         clippy::unused_self,
         reason = "May need access to configuration in future"
     )]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "Workflow phase intentionally orchestrates multiple detailed sub-steps"
+    )]
     fn parse_extracted_sections(&self, extracted_sections_dir: &Path) -> (usize, usize, usize) {
         use tracing::{info, warn};
 

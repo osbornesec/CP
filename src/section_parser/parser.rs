@@ -45,7 +45,10 @@ impl SectionFileParser {
         let content_end = self.find_next_section_start(lines, search_start);
 
         let slice_end = content_end.min(lines.len());
-        return Some(lines[start_index..slice_end].join("\n"));
+        let Some(slice) = lines.get(start_index..slice_end) else {
+            return None;
+        };
+        return Some(slice.join("\n"));
     }
 
     /// Extract file section content
@@ -59,7 +62,10 @@ impl SectionFileParser {
         let content_end = self.find_next_section_start(lines, search_start);
 
         let slice_end = content_end.min(lines.len());
-        return Some(lines[start_index..slice_end].join("\n"));
+        let Some(slice) = lines.get(start_index..slice_end) else {
+            return None;
+        };
+        return Some(slice.join("\n"));
     }
     #[must_use]
     #[inline]
@@ -97,7 +103,10 @@ impl SectionFileParser {
             return false;
         }
 
-        let opening_delimiter = match self.detector.detect_section_delimiter(lines[index]) {
+        let Some(opening_line) = lines.get(index) else {
+            return false;
+        };
+        let opening_delimiter = match self.detector.detect_section_delimiter(opening_line) {
             Some(
                 delimiter @ (SectionDelimiterType::Command23Dash
                 | SectionDelimiterType::Command24Dash),
@@ -105,18 +114,23 @@ impl SectionFileParser {
             _ => return false,
         };
 
-        let command_name = lines[index + 1_usize].trim();
+        let Some(command_name_line) = lines.get(index + 1_usize) else {
+            return false;
+        };
+        let command_name = command_name_line.trim();
         if command_name.is_empty() {
             return false;
         }
 
-        match self
-            .detector
-            .detect_section_delimiter(lines[index + 2_usize])
-        {
-            Some(delimiter) if delimiter == opening_delimiter => true,
-            _ => false,
-        }
+        let Some(closing_line) = lines.get(index + 2_usize) else {
+            return false;
+        };
+
+        return matches!(
+            self.detector
+                .detect_section_delimiter(closing_line),
+            Some(delimiter) if delimiter == opening_delimiter
+        );
     }
 
     /// Determines whether a file section header begins at `index` in `lines`.
@@ -140,22 +154,30 @@ impl SectionFileParser {
             return false;
         }
 
-        if self.detector.detect_section_delimiter(lines[index])
+        let Some(header_line) = lines.get(index) else {
+            return false;
+        };
+        if self.detector.detect_section_delimiter(header_line)
             != Some(SectionDelimiterType::File66Dash)
         {
             return false;
         }
 
-        let path = lines[index + 1_usize].trim();
+        let Some(path_line) = lines.get(index + 1_usize) else {
+            return false;
+        };
+        let path = path_line.trim();
         if path.is_empty() {
             return false;
         }
 
-        matches!(
-            self.detector
-                .detect_section_delimiter(lines[index + 2_usize]),
+        let Some(footer_line) = lines.get(index + 2_usize) else {
+            return false;
+        };
+        return matches!(
+            self.detector.detect_section_delimiter(footer_line),
             Some(SectionDelimiterType::File66Dash)
-        )
+        );
     }
 
     /// Create a new section file parser
@@ -301,6 +323,7 @@ impl SectionFileParser {
     /// assert_eq!(file.path, "/path/to/file.txt");
     /// assert_eq!(file.content, "line1\nline2");
     /// ```
+    #[inline]
     pub fn parse_file_section(&self, section_content: &str) -> Result<FileSection> {
         let lines: Vec<&str> = section_content.lines().collect();
 
@@ -435,7 +458,10 @@ impl SectionFileParser {
                 if let Some(command_section_content) =
                     self.extract_command_section_content(&lines, line_index)
                 {
-                    let cmd_section = self.parse_command_section(&command_section_content)?;
+                    let cmd_section = match self.parse_command_section(&command_section_content) {
+                        Ok(section) => section,
+                        Err(parse_error) => return Err(parse_error),
+                    };
                     command_sections.push(cmd_section);
                 }
                 line_index = self.find_next_section_start(&lines, line_index + 3_usize);
@@ -446,7 +472,10 @@ impl SectionFileParser {
                 if let Some(file_section_content) =
                     self.extract_file_section_content(&lines, line_index)
                 {
-                    let file_section = self.parse_file_section(&file_section_content)?;
+                    let file_section = match self.parse_file_section(&file_section_content) {
+                        Ok(section) => section,
+                        Err(parse_error) => return Err(parse_error),
+                    };
                     file_sections.push(file_section);
                 }
                 line_index = self.find_next_section_start(&lines, line_index + 3_usize);
@@ -457,6 +486,20 @@ impl SectionFileParser {
         }
 
         return Ok((command_sections, file_sections));
+    }
+
+    /// Deprecated convenience wrapper that forwards to [`process_section_file_async`].
+    ///
+    /// # Errors
+    ///
+    /// Propagates any parsing error encountered while reading or processing the section file.
+    #[inline]
+    #[deprecated(
+        since = "0.2.0",
+        note = "Use `process_section_file_async` instead for clearer async semantics"
+    )]
+    pub async fn process_section_file(&self, file_path: &Path) -> Result<SectionFileProcessResult> {
+        return self.process_section_file_async(file_path).await;
     }
 
     /// Process a single section file asynchronously.
@@ -511,11 +554,6 @@ impl SectionFileParser {
             file_sections,
             stats,
         });
-    }
-
-    #[deprecated(since = "0.2.0", note = "Use `process_section_file_async` instead for clearer async semantics")]
-    pub async fn process_section_file(&self, file_path: &Path) -> Result<SectionFileProcessResult> {
-        self.process_section_file_async(file_path).await
     }
 }
 

@@ -17,8 +17,6 @@ use crate::extraction::writer::{
 
 /// Parameters for organized section extraction to reduce function argument count
 struct OrganizedExtractionParams<'content> {
-    /// Directory where sections are stored
-    sections_dir: &'content Path,
     /// Ending line index for content
     content_end: usize,
     /// Starting line index for content
@@ -29,6 +27,8 @@ struct OrganizedExtractionParams<'content> {
     section_index: usize,
     /// Name of the section
     section_name: &'content str,
+    /// Directory where sections are stored
+    sections_dir: &'content Path,
     /// Total sections for progress reporting
     total_sections: usize,
 }
@@ -37,8 +37,8 @@ struct OrganizedExtractionParams<'content> {
 struct OrganizedExtractionState {
     directories_created: Vec<PathBuf>,
     section_files: Vec<PathBuf>,
-    writer_config: WriterConfig,
     sections_dir: PathBuf,
+    writer_config: WriterConfig,
 }
 
 impl OrganizedExtractionState {
@@ -61,7 +61,7 @@ impl OrganizedExtractionState {
         self.section_files.push(file);
     }
 
-    /// Creates a new OrganizedExtractionState rooted at the given base path.
+    /// Creates a new `OrganizedExtractionState` rooted at the given base path.
     ///
     /// Ensures a "sections" subdirectory exists under `base_path` (creating it and recording it
     /// when necessary), initializes an empty list of section files and a default writer configuration,
@@ -73,7 +73,7 @@ impl OrganizedExtractionState {
     ///
     /// # Returns
     ///
-    /// `Ok(Self)` containing an OrganizedExtractionState with `sections_dir` set to `base_path.join("sections")`
+    /// `Ok(Self)` containing an `OrganizedExtractionState` with `sections_dir` set to `base_path.join("sections")`
     /// and `directories_created` containing the `sections` directory if it was newly created; `Err` if
     /// creating the directory fails.
     ///
@@ -96,16 +96,19 @@ impl OrganizedExtractionState {
         let mut directories_created = Vec::new();
 
         if !sections_dir.exists() {
-            create_dir_all(&sections_dir)?;
+            match create_dir_all(&sections_dir) {
+                Ok(()) => {}
+                Err(create_error) => return Err(create_error.into()),
+            }
             directories_created.push(sections_dir.clone());
             info!("\u{1f4c1} Created sections directory: {:?}", sections_dir);
         }
 
         return Ok(Self {
             directories_created,
+            sections_dir,
             section_files: Vec::new(),
             writer_config: WriterConfig::default(),
-            sections_dir,
         });
     }
 }
@@ -216,7 +219,10 @@ fn process_organized_sections(
     lines: &[&str],
     output_path: &Path,
 ) -> Result<OrganizedExtractionState> {
-    let mut state = OrganizedExtractionState::new(output_path)?;
+    let mut state = match OrganizedExtractionState::new(output_path) {
+        Ok(initial_state) => initial_state,
+        Err(initialization_error) => return Err(initialization_error),
+    };
     let total_sections = count_estimated_sections(lines);
 
     info!(
@@ -242,12 +248,12 @@ fn process_organized_sections(
             );
 
             let extraction_params = OrganizedExtractionParams {
-                sections_dir: &state.sections_dir,
                 content_end,
                 content_start,
                 lines,
                 section_index,
                 section_name: &section_name,
+                sections_dir: &state.sections_dir,
                 total_sections,
             };
 
@@ -349,28 +355,40 @@ fn skip_file_header(lines: &[&str]) -> usize {
 /// // content_end points to the delimiter before "Section B"
 /// assert_eq!(found.2, 6);
 /// ```
+#[allow(
+    clippy::single_call_fn,
+    reason = "Helper extracted for clarity despite single caller"
+)]
 fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usize, usize)> {
     const DELIMITER: &str = "==============================================";
 
     for line_index in start_index..lines.len() {
-        let current_line = lines[line_index].trim();
+        let current_line = match lines.get(line_index) {
+            Some(line) => line.trim(),
+            None => return None,
+        };
 
-        if current_line == DELIMITER && line_index + 2 < lines.len() {
-            let section_name = lines[line_index + 1].trim();
-            let closing_candidate = lines[line_index + 2].trim();
-
-            if section_name.is_empty()
-                || section_name == DELIMITER
-                || closing_candidate != DELIMITER
-            {
-                continue;
-            }
-
-            let content_start = line_index + 3; // Skip delimiter, name, and closing delimiter
-            let content_end = find_section_content_end(lines, content_start);
-
-            return Some((section_name.to_owned(), content_start, content_end));
+        if current_line != DELIMITER {
+            continue;
         }
+
+        let Some(section_name_line) = lines.get(line_index + 1) else {
+            continue;
+        };
+        let section_name = section_name_line.trim();
+        let Some(closing_candidate_line) = lines.get(line_index + 2) else {
+            continue;
+        };
+        let closing_candidate = closing_candidate_line.trim();
+
+        if section_name.is_empty() || section_name == DELIMITER || closing_candidate != DELIMITER {
+            continue;
+        }
+
+        let content_start = line_index + 3; // Skip delimiter, name, and closing delimiter
+        let content_end = find_section_content_end(lines, content_start);
+
+        return Some((section_name.to_owned(), content_start, content_end));
     }
 
     return None;
@@ -411,18 +429,27 @@ fn find_section_content_end(lines: &[&str], start_index: usize) -> usize {
 
     let mut index = start_index;
     while index + 2 < lines.len() {
-        if lines[index].trim() != DELIMITER {
+        let Some(current_line) = lines.get(index) else {
+            break;
+        };
+        if current_line.trim() != DELIMITER {
             index += 1;
             continue;
         }
 
-        let potential_name = lines[index + 1].trim();
+        let Some(potential_name_line) = lines.get(index + 1) else {
+            break;
+        };
+        let potential_name = potential_name_line.trim();
         if potential_name.is_empty() || potential_name == DELIMITER {
             index += 1;
             continue;
         }
 
-        if lines[index + 2].trim() == DELIMITER {
+        let Some(closing_line) = lines.get(index + 2) else {
+            break;
+        };
+        if closing_line.trim() == DELIMITER {
             return index;
         }
 
