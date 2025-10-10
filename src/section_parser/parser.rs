@@ -41,8 +41,8 @@ impl SectionFileParser {
             return None;
         }
 
-        let content_start = start_index + 3_usize;
-        let content_end = self.find_next_section_start(lines, content_start);
+        let search_start = start_index + 3_usize;
+        let content_end = self.find_next_section_start(lines, search_start);
 
         let slice_end = content_end.min(lines.len());
         return Some(lines[start_index..slice_end].join("\n"));
@@ -55,8 +55,8 @@ impl SectionFileParser {
             return None;
         }
 
-        let content_start = start_index + 3_usize;
-        let content_end = self.find_next_section_start(lines, content_start);
+        let search_start = start_index + 3_usize;
+        let content_end = self.find_next_section_start(lines, search_start);
 
         let slice_end = content_end.min(lines.len());
         return Some(lines[start_index..slice_end].join("\n"));
@@ -513,7 +513,7 @@ impl SectionFileParser {
         });
     }
 
-    #[deprecated(note = "Use process_section_file_async")]
+    #[deprecated(since = "0.2.0", note = "Use `process_section_file_async` instead for clearer async semantics")]
     pub async fn process_section_file(&self, file_path: &Path) -> Result<SectionFileProcessResult> {
         self.process_section_file_async(file_path).await
     }
