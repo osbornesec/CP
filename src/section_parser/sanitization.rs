@@ -130,7 +130,7 @@ pub fn command_output_filename(command_name: &str) -> String {
 #[inline]
 pub fn file_output_filename(file_path: &str) -> String {
     let sanitized = sanitize_file_path(file_path);
-    if sanitized.ends_with(".txt") {
+    if sanitized.len() >= 4 && sanitized[sanitized.len() - 4..].eq_ignore_ascii_case(".txt") {
         return sanitized;
     }
     return format!("{sanitized}.txt");
@@ -179,8 +179,7 @@ pub fn sanitize_file_path(path: &str) -> String {
     return path
         .chars()
         .map(|character| match character {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => character,
-            '.' => '.',
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' => character,
             '/' | '\\' => '_',
             _ => '_',
         })

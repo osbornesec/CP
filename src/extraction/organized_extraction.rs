@@ -33,7 +33,7 @@ struct OrganizedExtractionParams<'content> {
     total_sections: usize,
 }
 
-/// State for tracking organized extraction progress
+/// Internal state used while tracking organized extraction progress.
 struct OrganizedExtractionState {
     directories_created: Vec<PathBuf>,
     section_files: Vec<PathBuf>,
@@ -86,8 +86,8 @@ impl OrganizedExtractionState {
     /// assert!(state.sections_dir.ends_with("sections"));
     /// ```
     #[allow(
-    clippy::single_call_fn,
-    reason = "Semantic clarity and code organization"
+        clippy::single_call_fn,
+        reason = "Semantic clarity and code organization"
     )]
     #[inline]
     fn new(base_path: &Path) -> Result<Self> {
@@ -214,8 +214,8 @@ pub fn extract_sections_organized<P1: AsRef<Path>, P2: AsRef<Path>>(
 /// # Ok(()) }
 /// ```
 #[allow(
-clippy::single_call_fn,
-reason = "Semantic clarity and code organization"
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
 )]
 #[inline]
 fn process_organized_sections(
@@ -425,8 +425,8 @@ fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usiz
 /// assert_eq!(idx2, lines_no_boundary.len());
 /// ```
 #[allow(
-clippy::single_call_fn,
-reason = "Semantic clarity and code organization"
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
 )]
 #[inline]
 fn find_section_content_end(lines: &[&str], start_index: usize) -> usize {
@@ -518,8 +518,8 @@ fn count_estimated_sections(lines: &[&str]) -> usize {
 /// // }
 /// ```
 #[allow(
-clippy::single_call_fn,
-reason = "Semantic clarity and code organization"
+    clippy::single_call_fn,
+    reason = "Semantic clarity and code organization"
 )]
 #[inline]
 fn extract_organized_section(

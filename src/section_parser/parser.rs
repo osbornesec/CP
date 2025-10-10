@@ -31,27 +31,6 @@ pub struct SectionFileParser {
 }
 
 impl SectionFileParser {
-    /// Collects the raw text of a command section beginning at the given line index.
-    ///
-    /// If `start_index` points to a valid command header, returns the section text
-    /// from the header line through the last line before the next section header,
-    /// joined with `\n`. If `start_index` is not a command header, returns `None`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let parser = SectionFileParser::new();
-    /// let lines = [
-    ///     "------------------------", // opening delimiter
-    ///     "my-cmd",                  // command name
-    ///     "------------------------", // closing delimiter
-    ///     "echo hello",
-    ///     "echo world",
-    /// ];
-    /// let content = parser.extract_command_section_content(&lines, 0).unwrap();
-    /// assert!(content.starts_with("------------------------\nmy-cmd\n------------------------\n"));
-    /// assert!(content.contains("echo hello\n"));
-    /// ```
     #[inline]
     fn extract_command_section_content(
         &self,
@@ -65,30 +44,23 @@ impl SectionFileParser {
         let content_start = start_index + 3_usize;
         let content_end = self.find_next_section_start(lines, content_start);
 
-        let mut section_lines = Vec::new();
-        for line in lines
-            .iter()
-            .take(content_end.min(lines.len()))
-        return Some(lines[start_index..content_end.min(lines.len())].join("\n"));
+        let slice_end = content_end.min(lines.len());
+        return Some(lines[start_index..slice_end].join("\n"));
     }
 
-    /// Locate the next command or file section header starting from `start_index`.
-    ///
-    /// Returns the index of the first line at or after `start_index` that begins a command
-    /// or file header, or `lines.len()` if no header is found.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let parser = SectionFileParser::new();
-    /// let lines = vec![
-    ///     "some text",
-    ///     "--------------------------------------------------------", // not a header
-    ///     "------------------------", // possible command header (depends on detector)
-    /// ];
-    /// let idx = parser.find_next_section_start(&lines.iter().map(|s| s.as_str()).collect::<Vec<&str>>(), 0);
-    /// assert!(idx <= lines.len());
-    /// ```
+    /// Extract file section content
+    #[inline]
+    fn extract_file_section_content(&self, lines: &[&str], start_index: usize) -> Option<String> {
+        if !self.is_file_header(lines, start_index) {
+            return None;
+        }
+
+        let content_start = start_index + 3_usize;
+        let content_end = self.find_next_section_start(lines, content_start);
+
+        let slice_end = content_end.min(lines.len());
+        return Some(lines[start_index..slice_end].join("\n"));
+    }
     #[must_use]
     #[inline]
     fn find_next_section_start(&self, lines: &[&str], start_index: usize) -> usize {

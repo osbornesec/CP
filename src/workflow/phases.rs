@@ -134,8 +134,8 @@ impl IntegratedWorkflowOrchestrator {
     /// ```
     #[inline]
     #[allow(
-    clippy::unused_self,
-    reason = "May need access to configuration in future"
+        clippy::unused_self,
+        reason = "May need access to configuration in future"
     )]
     fn parse_extracted_sections(&self, extracted_sections_dir: &Path) -> (usize, usize, usize) {
         use tracing::{info, warn};

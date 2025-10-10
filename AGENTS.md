@@ -9,7 +9,7 @@ The Rust crate lives in `src/`, split by capability: `extraction/` for section w
 - `cargo test` — run unit and integration tests in `src/` and `tests/`.
 - `cargo test --doc` — ensure doctests (e.g., `write_section_with_progress`) compile.
 - `cargo clippy --all-targets --all-features` — lint with repository rules; treat warnings as blockers.
-- Run the appropriate code quality checks after every file edit before committing changes.
+- After each edit run `cargo fmt`, `cargo clippy --all-targets --all-features`, and `cargo test` before committing changes.
 - `scripts/lint_by_file.sh <path>` — narrow lint runs when triaging CI failures.
 
 ## Rust 2024 Style Guide & Naming Conventions
