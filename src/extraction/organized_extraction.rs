@@ -56,7 +56,7 @@ impl OrganizedExtractionState {
     /// let file = PathBuf::from("sections/example.txt");
     /// state.add_section_file(file.clone());
     /// assert!(state.section_files.contains(&file));
-    /// ```ignore
+    /// ```
     fn add_section_file(&mut self, file: PathBuf) {
         self.section_files.push(file);
     }
@@ -212,7 +212,7 @@ pub fn extract_sections_organized<P1: AsRef<Path>, P2: AsRef<Path>>(
 /// let state = process_organized_sections(&lines, Path::new(".")).unwrap();
 /// assert!(state.section_files.len() >= 1);
 /// # Ok(()) }
-/// ```ignore
+/// ```
 #[allow(
     clippy::single_call_fn,
     reason = "Semantic clarity and code organization"
@@ -354,26 +354,16 @@ fn skip_file_header(lines: &[&str]) -> usize {
 /// assert_eq!(found.1, 4); // content starts after opening delimiter, name, and closing delimiter
 /// // content_end points to the delimiter before "Section B"
 /// assert_eq!(found.2, 6);
-/// ```ignore
+/// ```
 fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usize, usize)> {
     const DELIMITER: &str = "==============================================";
 
     for line_index in start_index..lines.len() {
-        let current_line = match lines.get(line_index) {
-            Some(line_content) => line_content.trim(),
-            None => continue,
-        };
+        let current_line = lines[line_index].trim();
 
         if current_line == DELIMITER && line_index + 2 < lines.len() {
-            let section_name = match lines.get(line_index + 1) {
-                Some(name) => name.trim().to_owned(),
-                None => continue,
-            };
-
-            let closing_candidate = match lines.get(line_index + 2) {
-                Some(line) => line.trim(),
-                None => continue,
-            };
+            let section_name = lines[line_index + 1].trim();
+            let closing_candidate = lines[line_index + 2].trim();
 
             if section_name.is_empty()
                 || section_name == DELIMITER
@@ -382,17 +372,10 @@ fn find_next_section(lines: &[&str], start_index: usize) -> Option<(String, usiz
                 continue;
             }
 
-            if line_index + 3 >= lines.len() {
-                return Some((section_name, line_index + 3, lines.len()));
-            }
+            let content_start = line_index + 3; // Skip delimiter, name, and closing delimiter
+            let content_end = find_section_content_end(lines, content_start);
 
-            if !section_name.is_empty() && section_name != DELIMITER {
-                // Find content boundaries
-                let content_start = line_index + 3; // Skip delimiter, name, and closing delimiter
-                let content_end = find_section_content_end(lines, content_start);
-
-                return Some((section_name, content_start, content_end));
-            }
+            return Some((section_name.to_owned(), content_start, content_end));
         }
     }
 
@@ -434,41 +417,18 @@ fn find_section_content_end(lines: &[&str], start_index: usize) -> usize {
 
     let mut index = start_index;
     while index + 2 < lines.len() {
-        let current_line = match lines.get(index) {
-            Some(line) => line.trim(),
-            None => {
-                index += 1;
-                continue;
-            }
-        };
-
-        if current_line != DELIMITER {
+        if lines[index].trim() != DELIMITER {
             index += 1;
             continue;
         }
 
-        let potential_name = match lines.get(index + 1) {
-            Some(line) => line.trim(),
-            None => {
-                index += 1;
-                continue;
-            }
-        };
-
+        let potential_name = lines[index + 1].trim();
         if potential_name.is_empty() || potential_name == DELIMITER {
             index += 1;
             continue;
         }
 
-        let closing_line = match lines.get(index + 2) {
-            Some(line) => line.trim(),
-            None => {
-                index += 1;
-                continue;
-            }
-        };
-
-        if closing_line == DELIMITER {
+        if lines[index + 2].trim() == DELIMITER {
             return index;
         }
 

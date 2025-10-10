@@ -181,10 +181,10 @@ pub fn sanitize_command_name(command: &str) -> String {
 #[inline]
 pub fn sanitize_file_path(path: &str) -> String {
     return path
-        .chars()
-        .map(|character| match character {
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' => character,
-            '/' | '\\' => '_',
+        .bytes()
+        .map(|byte| match byte {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' => byte as char,
+            b'/' | b'\\' => '_',
             _ => '_',
         })
         .collect();

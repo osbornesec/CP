@@ -82,6 +82,8 @@ impl SectionFileParser {
     /// # Examples
     ///
     /// ```ignore
+    /// use cpinfo_parser::section_parser::parser::SectionFileParser;
+    ///
     /// let parser = SectionFileParser::new();
     /// let lines = [
     ///     "-----------------------", // opening command delimiter (23 or 24 dashes)
@@ -125,6 +127,8 @@ impl SectionFileParser {
     /// # Examples
     ///
     /// ```ignore
+    /// use cpinfo_parser::section_parser::parser::SectionFileParser;
+    ///
     /// let parser = SectionFileParser::new();
     /// let delim = "-".repeat(66);
     /// let lines: Vec<&str> = vec![&delim, "/some/path.txt", &delim];
@@ -431,9 +435,8 @@ impl SectionFileParser {
                 if let Some(command_section_content) =
                     self.extract_command_section_content(&lines, line_index)
                 {
-                    if let Ok(cmd_section) = self.parse_command_section(&command_section_content) {
-                        command_sections.push(cmd_section);
-                    }
+                    let cmd_section = self.parse_command_section(&command_section_content)?;
+                    command_sections.push(cmd_section);
                 }
                 line_index = self.find_next_section_start(&lines, line_index + 3_usize);
                 continue;
@@ -443,9 +446,8 @@ impl SectionFileParser {
                 if let Some(file_section_content) =
                     self.extract_file_section_content(&lines, line_index)
                 {
-                    if let Ok(file_section) = self.parse_file_section(&file_section_content) {
-                        file_sections.push(file_section);
-                    }
+                    let file_section = self.parse_file_section(&file_section_content)?;
+                    file_sections.push(file_section);
                 }
                 line_index = self.find_next_section_start(&lines, line_index + 3_usize);
                 continue;

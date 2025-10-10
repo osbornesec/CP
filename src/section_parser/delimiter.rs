@@ -46,14 +46,29 @@ impl SectionDelimiterDetector {
         let trimmed_content = input_line.trim();
 
         let length = trimmed_content.len();
-        if !Self::is_all_dashes(trimmed_content) {
-            return None;
-        }
 
         match length {
-            23 => Some(SectionDelimiterType::Command23Dash),
-            24 => Some(SectionDelimiterType::Command24Dash),
-            n if n >= 66 => Some(SectionDelimiterType::File66Dash),
+            23 => {
+                if Self::is_all_dashes(trimmed_content) {
+                    Some(SectionDelimiterType::Command23Dash)
+                } else {
+                    None
+                }
+            }
+            24 => {
+                if Self::is_all_dashes(trimmed_content) {
+                    Some(SectionDelimiterType::Command24Dash)
+                } else {
+                    None
+                }
+            }
+            n if n >= 66 => {
+                if Self::is_all_dashes(trimmed_content) {
+                    Some(SectionDelimiterType::File66Dash)
+                } else {
+                    None
+                }
+            }
             _ => None,
         }
     }
