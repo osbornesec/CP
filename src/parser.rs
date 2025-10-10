@@ -11,7 +11,6 @@ pub mod binary_extraction;
 pub mod concurrency;
 pub mod config;
 pub mod core;
-pub mod extraction;
 pub mod facade;
 pub mod monitoring;
 pub mod network;

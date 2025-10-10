@@ -111,7 +111,7 @@ pedantic = { level = "deny", priority = -1 }
 
 # Restriction lints (opinionated restrictions)
 restriction = { level = "deny", priority = -1 }
-# Override conflicting restriction rules to alllow automated fixes
+# Override conflicting restriction rules to allow automated fixes
 separated_literal_suffix = "allow"
 allow_attributes = "allow"
 cfg_not_test = "allow"
@@ -126,7 +126,7 @@ single_char_lifetime_names = "allow"
 collection_is_never_read = "allow"
 missing_docs_in_private_items = "allow"
 module_name_repetitions = "allow"
-needless_return = "allow"
+needless_return = "allow" # Resolves implicit_return conflict (see docs/implicit_return_configuration_conflict_report.md)
 allow_attributes_without_reason = "deny"
 as_underscore = "deny"
 assertions_on_result_states = "deny"

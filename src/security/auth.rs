@@ -265,7 +265,7 @@ impl AuthenticationManager {
             last_activity: now,
             permissions,
             session_id: session_id.clone(),
-            source_ip: source_ip.map(str::to_owned),
+            source_ip: source_ip.map(String::from),
             user_id: username.to_owned(),
         };
 
