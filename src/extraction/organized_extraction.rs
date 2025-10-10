@@ -95,16 +95,10 @@ impl OrganizedExtractionState {
 
         let mut directories_created = Vec::new();
 
-        let sections_dir_created = !sections_dir.exists();
-        if sections_dir_created {
-            match create_dir_all(&sections_dir) {
-                Ok(()) => {}
-                Err(error) => return Err(error.into()),
-            }
-        }
-
-        if sections_dir_created {
+        if !sections_dir.exists() {
+            create_dir_all(&sections_dir)?;
             directories_created.push(sections_dir.clone());
+            info!("\u{1f4c1} Created sections directory: {:?}", sections_dir);
         }
 
         return Ok(Self {
