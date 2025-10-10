@@ -464,7 +464,10 @@ impl SectionFileParser {
     /// # Errors
     /// Returns an error if file reading or parsing fails
     #[inline]
-    pub async fn process_section_file(&self, file_path: &Path) -> Result<SectionFileProcessResult> {
+    pub async fn process_section_file_async(
+        &self,
+        file_path: &Path,
+    ) -> Result<SectionFileProcessResult> {
         let content = match fs::read_to_string(file_path).await.map_err(CpinfoError::Io) {
             Ok(file_content) => file_content,
             Err(error) => return Err(error),
@@ -508,6 +511,11 @@ impl SectionFileParser {
             file_sections,
             stats,
         });
+    }
+
+    #[deprecated(note = "Use process_section_file_async")]
+    pub async fn process_section_file(&self, file_path: &Path) -> Result<SectionFileProcessResult> {
+        self.process_section_file_async(file_path).await
     }
 }
 
