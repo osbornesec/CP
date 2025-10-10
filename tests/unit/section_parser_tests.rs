@@ -86,6 +86,18 @@ mod section_delimiter_tests {
         assert_eq!(result, None);
     }
 
+    /// Asserts that a line of 65 consecutive dashes is not treated as a section delimiter.
+    ///
+    /// Verifies that the detector does not produce a false positive for a 65-dash near-miss pattern.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let detector = cpinfo_parser::section_parser::SectionDelimiterDetector::new();
+    /// let input = "-----------------------------------------------------------------"; // 65 dashes
+    /// let result = detector.detect_section_delimiter(input);
+    /// assert_eq!(result, None);
+    /// ```
     #[test]
     fn should_reject_65_dash_near_miss_pattern() {
         // Test 6: Should reject 65-dash near-miss pattern
@@ -101,6 +113,18 @@ mod section_delimiter_tests {
         assert_eq!(result, None);
     }
 
+    /// Verifies that a 67-character dash line is recognized as the file-delimiter variant accepted as `File66Dash`.
+    ///
+    /// This test ensures the detector accepts file delimiter variants that include one additional dash (67 dashes)
+    /// and maps them to `SectionDelimiterType::File66Dash`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let detector = SectionDelimiterDetector::new();
+    /// let input = "-------------------------------------------------------------------"; // 67 dashes
+    /// assert_eq!(detector.detect_section_delimiter(input), Some(SectionDelimiterType::File66Dash));
+    /// ```
     #[test]
     fn should_detect_67_dash_file_delimiter() {
         // Test 7: Should detect 67-dash file delimiter pattern (variant of file output wrapper)
